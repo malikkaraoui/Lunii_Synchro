@@ -1,0 +1,138 @@
+name: Build LuniiSync
+
+on:
+  push:
+    tags:
+      - "v*"          # Déclenché par : git tag v1.0 && git push --tags
+  workflow_dispatch:  # Bouton manuel sur GitHub
+
+jobs:
+  # ── macOS ──────────────────────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dépendances système
+        run: brew install ffmpeg
+
+      - name: Dépendances Python
+        run: |
+          pip install --quiet --upgrade \
+            pyinstaller PySide6-Essentials psutil xxtea requests \
+            pycryptodome Pillow mutagen ffmpeg-python unidecode py7zr
+
+      - name: Lunii.QT
+        run: git clone --quiet https://github.com/o-daneel/Lunii.QT.git
+
+      - name: studio-pack-generator (aarch64)
+        run: |
+          curl -fsSL \
+            "https://github.com/jersou/studio-pack-generator/releases/download/v0.5.14/studio-pack-generator-v0.5.14-aarch64-apple-darwin" \
+            -o studio-pack-generator
+          chmod +x studio-pack-generator
+
+      - name: Build .app
+        run: pyinstaller lunii-app.spec --noconfirm
+
+      - name: ZIP l'app
+        run: cd dist && zip -r LuniiSync-macOS.zip LuniiSync.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LuniiSync-macOS
+          path: dist/LuniiSync-macOS.zip
+
+  # ── Windows ────────────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: FFmpeg
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Dépendances Python
+        run: |
+          pip install --quiet --upgrade `
+            pyinstaller PySide6-Essentials psutil xxtea requests `
+            pycryptodome Pillow mutagen ffmpeg-python unidecode py7zr
+
+      - name: Lunii.QT
+        run: git clone --quiet https://github.com/o-daneel/Lunii.QT.git
+
+      - name: studio-pack-generator (Windows)
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/jersou/studio-pack-generator/releases/download/v0.5.14/studio-pack-generator-v0.5.14-x86_64-pc-windows-msvc.exe" `
+            -OutFile "studio-pack-generator.exe"
+
+      - name: Générer icône .ico
+        run: |
+          python -c "
+          from PIL import Image, ImageDraw
+          img = Image.new('RGBA',(256,256),(20,50,120,255))
+          d = ImageDraw.Draw(img)
+          d.ellipse([20,20,236,236],fill=(40,100,200,255))
+          d.text((128,128),'L',fill=(255,255,255,255),anchor='mm')
+          s=[16,32,48,64,128,256]
+          imgs=[img.resize((x,x),Image.LANCZOS) for x in s]
+          imgs[0].save('lunii-sync.ico',format='ICO',sizes=[(x,x) for x in s],append_images=imgs[1:])
+          "
+
+      - name: Patch spec pour Windows (.ico)
+        shell: pwsh
+        run: |
+          (Get-Content lunii-app.spec -Raw) `
+            -replace "icon=str\(LUNII_QT.*?else None", "icon='lunii-sync.ico'" |
+          Set-Content lunii-app-win.spec -Encoding UTF8
+
+      - name: Build .exe
+        run: pyinstaller lunii-app-win.spec --noconfirm
+
+      - name: ZIP le dossier
+        run: Compress-Archive -Path dist\LuniiSync -DestinationPath dist\LuniiSync-Windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LuniiSync-Windows
+          path: dist\LuniiSync-Windows.zip
+
+  # ── Release GitHub ─────────────────────────────────────────────────────────
+  release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Créer la release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "LuniiSync"
+          body: |
+            ## LuniiSync
+
+            ### Téléchargements
+
+            - **Windows** : `LuniiSync-Windows.zip` → extraire le dossier → double-cliquer `LuniiSync.exe`
+            - **macOS** : `LuniiSync-macOS.zip` → extraire → double-cliquer `LuniiSync.app`
+
+            > macOS : si bloqué, clic droit → Ouvrir → Ouvrir quand même.
+          files: |
+            artifacts/LuniiSync-Windows/LuniiSync-Windows.zip
+            artifacts/LuniiSync-macOS/LuniiSync-macOS.zip
