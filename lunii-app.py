@@ -70,12 +70,11 @@ sys.path.insert(0, str(LUNII_QT_PATH))
 logging.basicConfig(level=logging.WARNING)
 
 # ── 3. Setup automatique (Lunii.QT + SPG) ────────────────────────────────────
+# (zip_filename, binary_path_inside_zip)
 _SPG_TABLE = {
-    ("Darwin",  "arm64"):   f"studio-pack-generator-v{SPG_VERSION}-aarch64-apple-darwin",
-    ("Darwin",  "x86_64"):  f"studio-pack-generator-v{SPG_VERSION}-x86_64-apple-darwin",
-    ("Linux",   "x86_64"):  f"studio-pack-generator-v{SPG_VERSION}-x86_64-unknown-linux-musl",
-    ("Linux",   "aarch64"): f"studio-pack-generator-v{SPG_VERSION}-aarch64-unknown-linux-musl",
-    ("Windows", "AMD64"):   f"studio-pack-generator-v{SPG_VERSION}-x86_64-pc-windows-msvc.exe",
+    ("Darwin",  "arm64"):   (f"studio-pack-generator-{SPG_VERSION}-aarch64-apple.zip",  "studio-pack-generator-aarch64-apple"),
+    ("Darwin",  "x86_64"):  (f"studio-pack-generator-{SPG_VERSION}-x86_64-apple.zip",   "studio-pack-generator-x86_64-apple"),
+    ("Windows", "AMD64"):   (f"studio-pack-generator-{SPG_VERSION}-x86_64-windows.zip", "Studio-Pack-Generator/studio-pack-generator-x86_64-windows.exe"),
 }
 
 
@@ -95,20 +94,37 @@ class SetupWorker(QObject):
                 self.progress.emit("Lunii.QT cloné.")
 
             if not SPG_BINARY.exists():
+                import tempfile, zipfile, shutil
                 key = (platform.system(), platform.machine())
-                name = _SPG_TABLE.get(key)
-                if not name:
+                entry = _SPG_TABLE.get(key)
+                if not entry:
                     self.finished.emit(False, f"Plateforme non supportée : {key}")
                     return
+                zip_name, bin_in_zip = entry
                 url = (f"https://github.com/jersou/studio-pack-generator"
-                       f"/releases/download/v{SPG_VERSION}/{name}")
-                self.progress.emit(f"Téléchargement de studio-pack-generator…")
+                       f"/releases/download/v{SPG_VERSION}/{zip_name}")
+                self.progress.emit("Téléchargement de studio-pack-generator…")
 
                 def _hook(b, bs, total):
                     if total > 0:
                         self.progress.emit(f"Téléchargement… {min(b*bs*100//total, 100)}%")
 
-                urllib.request.urlretrieve(url, SPG_BINARY, reporthook=_hook)
+                with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+                    tmp_zip = Path(tmp.name)
+                urllib.request.urlretrieve(url, tmp_zip, reporthook=_hook)
+                self.progress.emit("Extraction…")
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    with zipfile.ZipFile(tmp_zip) as zf:
+                        zf.extractall(tmp_dir)
+                    src_bin = Path(tmp_dir) / Path(bin_in_zip)
+                    shutil.move(str(src_bin), str(SPG_BINARY))
+                    if platform.system() == "Windows":
+                        src_tools = Path(tmp_dir) / "Studio-Pack-Generator" / "tools"
+                        dst_tools = SPG_BINARY.parent / "tools"
+                        if dst_tools.exists():
+                            shutil.rmtree(dst_tools)
+                        shutil.move(str(src_tools), str(dst_tools))
+                tmp_zip.unlink(missing_ok=True)
                 if platform.system() != "Windows":
                     SPG_BINARY.chmod(0o755)
                 self.progress.emit("studio-pack-generator prêt.")

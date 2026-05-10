@@ -5,7 +5,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ScriptDir
 
 $SPG_VERSION = "0.5.14"
-$SPG_URL = "https://github.com/jersou/studio-pack-generator/releases/download/v$SPG_VERSION/studio-pack-generator-v$SPG_VERSION-x86_64-pc-windows-msvc.exe"
+$SPG_URL = "https://github.com/jersou/studio-pack-generator/releases/download/v$SPG_VERSION/studio-pack-generator-$SPG_VERSION-x86_64-windows.zip"
 
 Write-Host ""
 Write-Host "=== Lunii Sync — Build Windows ===" -ForegroundColor Cyan
@@ -56,7 +56,13 @@ Write-Host ""
 Write-Host "=== 4. studio-pack-generator ===" -ForegroundColor Cyan
 if (-not (Test-Path "studio-pack-generator.exe")) {
     Write-Host "   Téléchargement..."
-    Invoke-WebRequest -Uri $SPG_URL -OutFile "studio-pack-generator.exe"
+    Invoke-WebRequest -Uri $SPG_URL -OutFile "spg.zip"
+    Expand-Archive -Path spg.zip -DestinationPath spg-extracted -Force
+    Move-Item "spg-extracted\Studio-Pack-Generator\studio-pack-generator-x86_64-windows.exe" "studio-pack-generator.exe"
+    if (-not (Test-Path "tools")) {
+        Move-Item "spg-extracted\Studio-Pack-Generator\tools" "tools"
+    }
+    Remove-Item spg.zip, spg-extracted -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host "   Téléchargé."
 } else {
     Write-Host "   Déjà présent."

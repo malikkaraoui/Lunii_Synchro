@@ -33,8 +33,10 @@ jobs:
       - name: studio-pack-generator (aarch64)
         run: |
           curl -fsSL \
-            "https://github.com/jersou/studio-pack-generator/releases/download/v0.5.14/studio-pack-generator-v0.5.14-aarch64-apple-darwin" \
-            -o studio-pack-generator
+            "https://github.com/jersou/studio-pack-generator/releases/download/v0.5.14/studio-pack-generator-0.5.14-aarch64-apple.zip" \
+            -o spg.zip
+          unzip -q spg.zip
+          mv studio-pack-generator-aarch64-apple studio-pack-generator
           chmod +x studio-pack-generator
 
       - name: Build .app
@@ -74,8 +76,11 @@ jobs:
       - name: studio-pack-generator (Windows)
         run: |
           Invoke-WebRequest `
-            -Uri "https://github.com/jersou/studio-pack-generator/releases/download/v0.5.14/studio-pack-generator-v0.5.14-x86_64-pc-windows-msvc.exe" `
-            -OutFile "studio-pack-generator.exe"
+            -Uri "https://github.com/jersou/studio-pack-generator/releases/download/v0.5.14/studio-pack-generator-0.5.14-x86_64-windows.zip" `
+            -OutFile "spg.zip"
+          Expand-Archive -Path spg.zip -DestinationPath spg-extracted -Force
+          Move-Item "spg-extracted\Studio-Pack-Generator\studio-pack-generator-x86_64-windows.exe" "studio-pack-generator.exe"
+          Move-Item "spg-extracted\Studio-Pack-Generator\tools" "tools"
 
       - name: Générer icône .ico
         run: |

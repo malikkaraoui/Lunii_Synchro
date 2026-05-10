@@ -49,14 +49,17 @@ echo ""
 echo "=== 4. studio-pack-generator ==="
 if [ ! -f "studio-pack-generator" ]; then
     case "$ARCH" in
-        arm64)  BINARY="studio-pack-generator-v${SPG_VERSION}-aarch64-apple-darwin" ;;
-        x86_64) BINARY="studio-pack-generator-v${SPG_VERSION}-x86_64-apple-darwin"  ;;
+        arm64)  ZIP="studio-pack-generator-${SPG_VERSION}-aarch64-apple.zip"; BIN="studio-pack-generator-aarch64-apple" ;;
+        x86_64) ZIP="studio-pack-generator-${SPG_VERSION}-x86_64-apple.zip";  BIN="studio-pack-generator-x86_64-apple"  ;;
         *) echo "❌ Architecture non supportée : $ARCH"; exit 1 ;;
     esac
-    echo "   Téléchargement de $BINARY…"
+    echo "   Téléchargement de $ZIP…"
     curl -fsSL \
-        "https://github.com/jersou/studio-pack-generator/releases/download/v${SPG_VERSION}/${BINARY}" \
-        -o studio-pack-generator
+        "https://github.com/jersou/studio-pack-generator/releases/download/v${SPG_VERSION}/${ZIP}" \
+        -o spg.zip
+    unzip -q spg.zip "$BIN"
+    mv "$BIN" studio-pack-generator
+    rm spg.zip
     chmod +x studio-pack-generator
     echo "   Téléchargé."
 else

@@ -14,17 +14,21 @@ SPG_NAME = "studio-pack-generator.exe" if _sys.platform == "win32" else "studio-
 
 block_cipher = None
 
+_datas = [
+    (str(LUNII_QT / "pkg"),     "Lunii.QT/pkg"),
+    (str(LUNII_QT / "locales"), "Lunii.QT/locales"),
+    (str(LUNII_QT / "res"),     "Lunii.QT/res"),
+]
+if _sys.platform == "win32" and (ROOT / "tools").exists():
+    _datas.append((str(ROOT / "tools"), "tools"))
+
 a = Analysis(
     [str(ROOT / "lunii-app.py")],
     pathex=[str(ROOT), str(LUNII_QT)],
     binaries=[
         (str(ROOT / SPG_NAME), "."),
     ],
-    datas=[
-        (str(LUNII_QT / "pkg"),     "Lunii.QT/pkg"),
-        (str(LUNII_QT / "locales"), "Lunii.QT/locales"),
-        (str(LUNII_QT / "res"),     "Lunii.QT/res"),
-    ],
+    datas=_datas,
     hiddenimports=[
         # Lunii.QT
         "pkg.api.device_lunii",
