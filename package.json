@@ -1,0 +1,7 @@
+{
+  "name": "synchro-boite-a-histoires",
+  "private": true,
+  "scripts": {
+    "check:python": "python3 -m py_compile lunii-app.py lunii-push.py"
+  }
+}

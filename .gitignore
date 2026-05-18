@@ -1,0 +1,16 @@
+__pycache__/
+.pytest_cache/
+build/
+dist/
+*.pyc
+.DS_Store
+Lunii.QT/
+studio-pack-generator
+studio-pack-generator.exe
+tools/
+manifests/*.json
+!manifests/.gitkeep
+spg.zip
+spg-extracted/
+lunii-app-win.spec
+lunii-sync.ico

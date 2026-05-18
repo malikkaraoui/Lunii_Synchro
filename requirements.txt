@@ -1,0 +1,10 @@
+PySide6-Essentials
+psutil
+xxtea
+requests
+pycryptodome
+Pillow
+mutagen
+ffmpeg-python
+unidecode
+py7zr
