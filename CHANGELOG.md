@@ -4,6 +4,16 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ---
 
+## [2.1.7] — 2026-05-22
+### Ajouté
+- L’ordre affiché des histoires suit maintenant le vrai fichier d’index Lunii `.pi`, donc la liste dans l’app reflète enfin l’ordre réel de lecture sur la boîte
+- Boutons `↑` / `↓` pour déplacer une histoire sur la boîte sans retransférer les packs
+
+### Corrigé
+- Tests backend ajoutés pour verrouiller la lecture de l’ordre `.pi` et éviter une nouvelle régression sur le classement des histoires
+
+---
+
 ## [2.1.6] — 2026-05-22
 ### Corrigé
 - Correctif critique de génération des packs Lunii : restauration du patch ZIP complet dans `lunii-bridge.py` pour une **lecture directe réellement lisible** sur la boîte

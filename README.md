@@ -4,7 +4,7 @@
   <p><strong>Transférez vos histoires audio sur  "Ma Fabrique à Histoires" — facilement, sans abonnement.</strong></p>
   <p><em>La conteuse mobile pour vos histoires et podcasts préférés... et bien plus !</em></p>
   <p>
-    <img src="https://img.shields.io/badge/version-2.1.6-00b49e?style=flat-square"/>
+    <img src="https://img.shields.io/badge/version-2.1.7-00b49e?style=flat-square"/>
     <img src="https://img.shields.io/badge/plateforme-macOS-lightgrey?style=flat-square&logo=apple"/>
     <img src="https://img.shields.io/badge/Tauri-2.0-blue?style=flat-square"/>
     <img src="https://img.shields.io/badge/Rust-%23000000?style=flat-square&logo=rust"/>
@@ -25,6 +25,7 @@ L'application génère automatiquement un story-pack compatible Lunii à partir 
 - **Détection automatique** de la Lunii branchée en USB
 - **Transfert ciblé** — sélectionnez uniquement les histoires à transférer
 - **Suppression** d'histoires directement depuis l'interface
+- **Réorganisation** de l’ordre des histoires sur la boîte avec `↑` / `↓`
 - **Noms personnalisés** par boîte (identifiées par UUID volume)
 - **Mode sombre / clair / automatique**
 - **Splash screen** avec vérification automatique des mises à jour au démarrage
