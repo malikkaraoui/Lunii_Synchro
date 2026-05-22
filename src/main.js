@@ -3,7 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
 
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.0.1";
 // URL de vérification des mises à jour (GitHub releases API)
 
 // ── État ──────────────────────────────────────────────────────────────────────
@@ -87,7 +87,15 @@ async function runSplash() {
       $label.textContent = `Nouvelle version disponible : v${latest} — cliquez pour installer`;
       $label.style.color = "#f0a32a";
       $label.style.cursor = "pointer";
-      $label.onclick = () => { $label.textContent = "Téléchargement en cours…"; invoke("download_and_install_update"); };
+      $label.onclick = () => {
+        $label.textContent = "Téléchargement en cours…";
+        $label.style.cursor = "default";
+        $label.onclick = null;
+        invoke("download_and_install_update").catch(e => {
+          $label.textContent = `Erreur : ${e}`;
+          $label.style.color = "#e55";
+        });
+      };
     } else {
       $label.textContent = "Application à jour ✓";
       $label.style.color = "#00957f";
