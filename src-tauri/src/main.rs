@@ -276,6 +276,36 @@ fn locate_bridge(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Err("lunii-bridge.py introuvable. Assurez-vous qu'il est à la racine du projet.".to_string())
 }
 
+// ── Vérification mise à jour ──────────────────────────────────────────────────
+
+const GITHUB_RELEASE_URL: &str =
+    "https://api.github.com/repos/malikkaraoui/Lunii_Synchro/releases/latest";
+
+#[tauri::command]
+async fn check_for_update() -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("LuniiSync/2.0")
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let resp = client
+        .get(GITHUB_RELEASE_URL)
+        .send()
+        .await
+        .map_err(|e| format!("Requête échouée : {e}"))?;
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("JSON invalide : {e}"))?;
+
+    json.get("tag_name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim_start_matches('v').to_string())
+        .ok_or_else(|| "tag_name absent de la réponse".to_string())
+}
+
 // ── Entrée principale ─────────────────────────────────────────────────────────
 
 fn main() {
@@ -298,6 +328,7 @@ fn main() {
             get_cover_base64,
             eject_device,
             start_sync,
+            check_for_update,
         ])
         .run(tauri::generate_context!())
         .expect("Erreur au démarrage de LuniiSync");

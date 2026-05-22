@@ -5,7 +5,6 @@ const { listen } = window.__TAURI__.event;
 
 const APP_VERSION = "2.0.0";
 // URL de vérification des mises à jour (GitHub releases API)
-const UPDATE_URL  = "https://api.github.com/repos/malikkaraoui/Lunii_Synchro/releases/latest";
 
 // ── État ──────────────────────────────────────────────────────────────────────
 let deviceMount   = null;
@@ -83,19 +82,13 @@ async function runSplash() {
   }, 120);
 
   try {
-    const resp = await fetch(UPDATE_URL, { signal: AbortSignal.timeout(4000) });
-    if (resp.ok) {
-      const data = await resp.json();
-      const latest = (data.tag_name || "").replace(/^v/, "");
-      if (latest && latest !== APP_VERSION) {
-        $label.textContent = `Nouvelle version disponible : v${latest}`;
-        $label.style.color = "#f0a32a";
-      } else {
-        $label.textContent = "Application à jour ✓";
-        $label.style.color = "#00957f";
-      }
+    const latest = await invoke("check_for_update");
+    if (latest && latest !== APP_VERSION) {
+      $label.textContent = `Nouvelle version disponible : v${latest}`;
+      $label.style.color = "#f0a32a";
     } else {
-      $label.textContent = "Impossible de vérifier les mises à jour";
+      $label.textContent = "Application à jour ✓";
+      $label.style.color = "#00957f";
     }
   } catch {
     $label.textContent = "Pas de connexion — vérification ignorée";
@@ -197,22 +190,15 @@ $checkUpdateBtn.addEventListener("click", async () => {
   $updateResult.textContent = "Vérification…";
   $updateResult.classList.remove("hidden");
   try {
-    const resp = await fetch(UPDATE_URL, { signal: AbortSignal.timeout(5000) });
-    if (resp.ok) {
-      const data = await resp.json();
-      const latest = (data.tag_name || "").replace(/^v/, "");
-      if (latest && latest !== APP_VERSION) {
-        $updateResult.classList.add("update-new");
-        $updateResult.textContent = `Nouvelle version disponible : v${latest}`;
-      } else {
-        $updateResult.classList.add("update-ok");
-        $updateResult.textContent = "Application à jour ✓";
-      }
+    const latest = await invoke("check_for_update");
+    if (latest && latest !== APP_VERSION) {
+      $updateResult.classList.add("update-new");
+      $updateResult.textContent = `Nouvelle version disponible : v${latest}`;
     } else {
-      $updateResult.classList.add("update-err");
-      $updateResult.textContent = "Serveur inaccessible";
+      $updateResult.classList.add("update-ok");
+      $updateResult.textContent = "Application à jour ✓";
     }
-  } catch {
+  } catch (e) {
     $updateResult.classList.add("update-err");
     $updateResult.textContent = "Pas de connexion Internet";
   }
