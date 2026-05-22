@@ -170,7 +170,17 @@ impl LuniiDeviceProbe {
     fn connected(mount: PathBuf, detection_method: &str, marker_found: bool) -> Self {
         let content_dir = mount.join(".content");
         let story_dir_count = count_story_dirs(&content_dir);
-        let device_id = get_volume_id(mount.to_str().unwrap_or(""));
+        let mount_str = mount.to_str().unwrap_or("");
+
+        // Utilise le numéro de série hardware (stable) en priorité,
+        // sinon le Volume UUID macOS (peut changer sur FAT entre montages).
+        let info = read_device_info(mount_str);
+        let device_id = if !info.serial.is_empty() && info.serial != "000000000000000000" {
+            Some(format!("serial-{}", info.serial))
+        } else {
+            get_volume_id(mount_str)
+        };
+
         Self {
             connected: true,
             mount: Some(mount.to_string_lossy().into_owned()),
