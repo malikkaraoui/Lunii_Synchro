@@ -4,6 +4,20 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ---
 
+## [2.1.11] — 2026-05-22
+
+### Ajouté
+
+- Distribution macOS clarifiée avec deux builds séparés : Apple Silicon et Intel
+- Workflow GitHub pour générer automatiquement l’installateur Windows `.exe` lors d’une release
+
+### Corrigé
+
+- L’updater macOS sélectionne maintenant l’archive `.tar.gz` correspondant à l’architecture de la machine
+- Préparation de l’exécution Python rendue plus robuste hors macOS
+
+---
+
 ## [2.1.10] — 2026-05-22
 
 ### Corrigé

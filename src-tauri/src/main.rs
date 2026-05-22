@@ -113,6 +113,27 @@ fn save_last_folder(app: tauri::AppHandle, folder: String) -> Result<(), String>
     app_settings::save(&app, &settings).map_err(|e| e.to_string())
 }
 
+fn bridge_path_env() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        Some("/Library/Frameworks/Python.framework/Versions/3.13/bin:/Library/Frameworks/Python.framework/Versions/3.12/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin".to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+fn command_available(command: &str) -> bool {
+    std::process::Command::new(command)
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 // ── Lecture image couverture en base64 ────────────────────────────────────────
 
 #[tauri::command]
@@ -202,9 +223,12 @@ async fn start_sync(
     cmd.arg(&bridge_path)
         .arg(&folder_path)
         .arg(&device_mount)
-        .env("PATH", "/Library/Frameworks/Python.framework/Versions/3.13/bin:/Library/Frameworks/Python.framework/Versions/3.12/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
+
+    if let Some(path_env) = bridge_path_env() {
+        cmd.env("PATH", path_env);
+    }
 
     // Passer les fichiers sélectionnés comme arguments supplémentaires
     for file in &selected_files {
@@ -265,13 +289,19 @@ async fn repair_pack_index(
     let bridge_path = locate_bridge(&app)?;
     let python = locate_python3();
 
-    let mut child = Command::new(&python)
+    let mut command = Command::new(&python);
+    command
         .arg(&bridge_path)
         .arg("--repair-index")
         .arg(&device_mount)
-        .env("PATH", "/Library/Frameworks/Python.framework/Versions/3.13/bin:/Library/Frameworks/Python.framework/Versions/3.12/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    if let Some(path_env) = bridge_path_env() {
+        command.env("PATH", path_env);
+    }
+
+    let mut child = command
         .spawn()
         .map_err(|e| format!("Impossible de lancer lunii-bridge.py : {e}"))?;
 
@@ -291,8 +321,12 @@ async fn repair_pack_index(
     else { Err(format!("Réparation échouée (code {})", status.code().unwrap_or(-1))) }
 }
 
-/// Retourne le chemin du python3 qui a PySide6 installé (évite /usr/bin/python3 système 3.9).
+/// Retourne la commande Python disponible selon la plateforme.
 fn locate_python3() -> String {
+    #[cfg(target_os = "windows")]
+    let candidates = ["py", "python", "python3"];
+
+    #[cfg(not(target_os = "windows"))]
     let candidates = [
         "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
         "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
@@ -300,12 +334,24 @@ fn locate_python3() -> String {
         "/opt/homebrew/bin/python3",
         "/usr/local/bin/python3",
         "python3",
+        "python",
     ];
+
     for path in &candidates {
-        if std::path::Path::new(path).exists() {
+        if path.contains('/') || path.contains('\\') {
+            if std::path::Path::new(path).exists() {
+                return path.to_string();
+            }
+        } else if command_available(path) {
             return path.to_string();
         }
     }
+
+    #[cfg(target_os = "windows")]
+    {
+        return "python".to_string();
+    }
+
     "python3".to_string()
 }
 
@@ -382,11 +428,18 @@ async fn download_and_install_update(app: tauri::AppHandle) -> Result<(), String
         .send().await.map_err(|e| e.to_string())?
         .json().await.map_err(|e| e.to_string())?;
 
+    #[cfg(target_arch = "aarch64")]
+    let preferred_asset = "LuniiSync-macOS-AppleSilicon.tar.gz";
+    #[cfg(target_arch = "x86_64")]
+    let preferred_asset = "LuniiSync-macOS-Intel.tar.gz";
+
     let asset_url = release["assets"]
         .as_array()
         .and_then(|arr| arr.iter().find(|a| {
+            a["name"].as_str().map(|n| n == preferred_asset).unwrap_or(false)
+        }).or_else(|| arr.iter().find(|a| {
             a["name"].as_str().map(|n| n.ends_with(".tar.gz")).unwrap_or(false)
-        }))
+        })))
         .and_then(|a| a["browser_download_url"].as_str())
         .ok_or("Aucun asset .tar.gz trouvé dans la release")?
         .to_string();
