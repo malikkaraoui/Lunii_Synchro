@@ -253,27 +253,26 @@ fn locate_python3() -> String {
     "python3".to_string()
 }
 
-/// Localise `lunii-bridge.py` : adjacent au binaire en production, à la racine du projet en dev.
+/// Localise `lunii-bridge.py` dans le bundle (Resources/) ou en dev (racine projet).
 fn locate_bridge(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    // Mode production : adjacent au binaire Tauri
-    if let Ok(exe) = app.path().resource_dir() {
-        let candidate = exe.join("lunii-bridge.py");
-        if candidate.exists() {
-            return Ok(candidate);
-        }
+    if let Ok(res_dir) = app.path().resource_dir() {
+        // Tauri bundle : Resources/lunii-bridge.py
+        let c1 = res_dir.join("lunii-bridge.py");
+        if c1.exists() { return Ok(c1); }
+        // Tauri bundle avec chemin ../  → Resources/_up_/lunii-bridge.py
+        let c2 = res_dir.join("_up_").join("lunii-bridge.py");
+        if c2.exists() { return Ok(c2); }
     }
 
-    // Mode dev : remonte à la racine du projet (src-tauri/../lunii-bridge.py)
+    // Mode dev : remonte à la racine du projet
     if let Ok(exe) = std::env::current_exe() {
         for ancestor in exe.ancestors().skip(1) {
             let candidate = ancestor.join("lunii-bridge.py");
-            if candidate.exists() {
-                return Ok(candidate);
-            }
+            if candidate.exists() { return Ok(candidate); }
         }
     }
 
-    Err("lunii-bridge.py introuvable. Assurez-vous qu'il est à la racine du projet.".to_string())
+    Err("lunii-bridge.py introuvable dans le bundle.".to_string())
 }
 
 // ── Vérification mise à jour ──────────────────────────────────────────────────
