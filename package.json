@@ -1,7 +1,20 @@
 {
-  "name": "synchro-boite-a-histoires",
-  "private": true,
+  "name": "luniisync",
+  "version": "2.0.0",
+  "description": "LuniiSync V2 — Transfert audio vers Lunii",
   "scripts": {
-    "check:python": "python3 -m py_compile lunii-app.py lunii-push.py"
+    "dev":            "tauri dev",
+    "build":          "tauri build",
+    "tauri":          "tauri",
+    "check:python":   "python3 -m py_compile lunii-bridge.py lunii-app.py lunii-push.py",
+    "check:rust":     "cd src-tauri && cargo check",
+    "test:rust":      "cd src-tauri && cargo test",
+    "verify":         "npm run check:python && npm run check:rust"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
   }
 }

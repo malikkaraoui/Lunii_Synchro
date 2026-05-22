@@ -1,42 +1,48 @@
 #!/usr/bin/env bash
-# build-macos.sh — Compile LuniiSync.app pour macOS (ARM + Intel)
+# build-macos.sh — V2 : compile LuniiSync.app via Tauri (Rust + frontend statique)
 # Usage : ./build-macos.sh
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-SPG_VERSION="0.5.14"
-ARCH="$(uname -m)"
-
 echo ""
-echo "=== Lunii Sync — Build macOS ($ARCH) ==="
+echo "=== LuniiSync V2 — Build macOS ==="
 echo ""
 
-# ── 1. Homebrew deps ──────────────────────────────────────────────────────────
-echo "=== 1. Dépendances système ==="
-command -v brew >/dev/null || { echo "❌ Homebrew requis : https://brew.sh"; exit 1; }
+# ── 1. Outils système ─────────────────────────────────────────────────────────
+echo "=== 1. Outils système ==="
+command -v brew    >/dev/null || { echo "❌ Homebrew requis : https://brew.sh"; exit 1; }
+command -v rustup  >/dev/null || { echo "⬇  Installation de Rust…"; curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; source "$HOME/.cargo/env"; }
+command -v cargo   >/dev/null || { source "$HOME/.cargo/env"; }
 brew install ffmpeg 2>/dev/null || true
 
-# ── 2. Python deps ────────────────────────────────────────────────────────────
+# ── 2. Tauri CLI ──────────────────────────────────────────────────────────────
 echo ""
-echo "=== 2. Dépendances Python ==="
+echo "=== 2. Tauri CLI ==="
+if ! cargo tauri --version >/dev/null 2>&1; then
+    echo "   Installation de tauri-cli…"
+    cargo install tauri-cli --version "^2" --locked
+fi
+echo "   $(cargo tauri --version)"
+
+# ── 3. Dépendances Python (sidecar) ──────────────────────────────────────────
+echo ""
+echo "=== 3. Dépendances Python (lunii-bridge) ==="
 pip3 install --quiet --upgrade \
-    pyinstaller \
     PySide6-Essentials \
-    psutil \
     xxtea \
-    requests \
     pycryptodome \
+    requests \
     Pillow \
     mutagen \
     ffmpeg-python \
     unidecode \
     py7zr
 
-# ── 3. Lunii.QT ───────────────────────────────────────────────────────────────
+# ── 4. Lunii.QT ───────────────────────────────────────────────────────────────
 echo ""
-echo "=== 3. Lunii.QT ==="
+echo "=== 4. Lunii.QT ==="
 if [ ! -d "Lunii.QT" ]; then
     git clone --quiet https://github.com/o-daneel/Lunii.QT.git
     echo "   Cloné."
@@ -44,47 +50,24 @@ else
     echo "   Déjà présent."
 fi
 
-# ── 4. studio-pack-generator ──────────────────────────────────────────────────
+# ── 5. Build Tauri ────────────────────────────────────────────────────────────
 echo ""
-echo "=== 4. studio-pack-generator ==="
-if [ ! -f "studio-pack-generator" ]; then
-    case "$ARCH" in
-        arm64)  ZIP="studio-pack-generator-${SPG_VERSION}-aarch64-apple.zip"; BIN="studio-pack-generator-aarch64-apple" ;;
-        x86_64) ZIP="studio-pack-generator-${SPG_VERSION}-x86_64-apple.zip";  BIN="studio-pack-generator-x86_64-apple"  ;;
-        *) echo "❌ Architecture non supportée : $ARCH"; exit 1 ;;
-    esac
-    echo "   Téléchargement de $ZIP…"
-    curl -fsSL \
-        "https://github.com/jersou/studio-pack-generator/releases/download/v${SPG_VERSION}/${ZIP}" \
-        -o spg.zip
-    unzip -q spg.zip "$BIN"
-    mv "$BIN" studio-pack-generator
-    rm spg.zip
-    chmod +x studio-pack-generator
-    echo "   Téléchargé."
-else
-    echo "   Déjà présent."
-fi
-
-# ── 5. Build PyInstaller ──────────────────────────────────────────────────────
-echo ""
-echo "=== 5. Build .app ==="
-rm -rf build dist
-
-pyinstaller lunii-app.spec --noconfirm
+echo "=== 5. Build Tauri (.app) ==="
+cargo tauri build
 
 # ── 6. Vérification ───────────────────────────────────────────────────────────
 echo ""
-if [ -d "dist/LuniiSync.app" ]; then
-    APP_SIZE=$(du -sh "dist/LuniiSync.app" | cut -f1)
-    echo "✅  dist/LuniiSync.app créé ($APP_SIZE)"
+APP_PATH="src-tauri/target/release/bundle/macos/LuniiSync.app"
+if [ -d "$APP_PATH" ]; then
+    APP_SIZE=$(du -sh "$APP_PATH" | cut -f1)
+    echo "✅  $APP_PATH créé ($APP_SIZE)"
     echo ""
     echo "Pour tester :"
-    echo "   open dist/LuniiSync.app"
+    echo "   open $APP_PATH"
     echo ""
-    echo "Pour installer dans Applications :"
-    echo "   cp -r dist/LuniiSync.app /Applications/"
+    echo "Pour distribuer, copier lunii-bridge.py à côté du .app :"
+    echo "   cp lunii-bridge.py dist/"
 else
-    echo "❌  Build échoué — consultez les logs ci-dessus."
+    echo "❌  Build Tauri échoué — consultez les logs ci-dessus."
     exit 1
 fi
