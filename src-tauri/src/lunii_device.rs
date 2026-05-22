@@ -272,17 +272,78 @@ fn write_pack_index_entries(index_path: &Path, entries: &[[u8; 16]]) -> Result<(
     fs::write(index_path, out).map_err(|e| format!("Écriture {:?} échouée : {e}", index_path))
 }
 
+fn read_all_pack_index_entries(mount: &Path) -> Result<(Vec<[u8; 16]>, Vec<[u8; 16]>), String> {
+    let visible_path = mount.join(".pi");
+    let hidden_path = mount.join(".pi.hidden");
+
+    let visible = if visible_path.is_file() {
+        read_pack_index_entries(&visible_path)?
+    } else {
+        Vec::new()
+    };
+
+    let hidden = if hidden_path.is_file() {
+        read_pack_index_entries(&hidden_path)?
+    } else {
+        Vec::new()
+    };
+
+    Ok((visible, hidden))
+}
+
+fn write_all_pack_index_entries(
+    mount: &Path,
+    visible_entries: &[[u8; 16]],
+    hidden_entries: &[[u8; 16]],
+) -> Result<(), String> {
+    write_pack_index_entries(&mount.join(".pi"), visible_entries)?;
+    write_pack_index_entries(&mount.join(".pi.hidden"), hidden_entries)?;
+    Ok(())
+}
+
+pub fn reorder_story_in_pack_index(
+    mount: &str,
+    short_uuid: &str,
+    new_index: usize,
+) -> Result<(), String> {
+    let mount_path = Path::new(mount);
+    let (mut visible_entries, hidden_entries) = read_all_pack_index_entries(mount_path)?;
+
+    if visible_entries.is_empty() {
+        return Err("Index .pi vide".to_string());
+    }
+
+    if new_index >= visible_entries.len() {
+        return Err(format!("Position cible invalide : {new_index}"));
+    }
+
+    let wanted = short_uuid.to_uppercase();
+    let current_idx = visible_entries
+        .iter()
+        .position(|entry| short_uuid_from_uuid_bytes(entry) == wanted)
+        .ok_or_else(|| format!("Histoire introuvable dans l'index : {wanted}"))?;
+
+    if current_idx == new_index {
+        return Ok(());
+    }
+
+    let entry = visible_entries.remove(current_idx);
+    visible_entries.insert(new_index, entry);
+
+    write_all_pack_index_entries(mount_path, &visible_entries, &hidden_entries)
+}
+
 pub fn move_story_in_pack_index(mount: &str, short_uuid: &str, direction: i32) -> Result<(), String> {
     if direction == 0 {
         return Ok(());
     }
 
-    let index_path = Path::new(mount).join(".pi");
-    if !index_path.is_file() {
+    let mount_path = Path::new(mount);
+    if !mount_path.join(".pi").is_file() {
         return Err("Index .pi introuvable sur la boîte".to_string());
     }
 
-    let mut entries = read_pack_index_entries(&index_path)?;
+    let (entries, _) = read_all_pack_index_entries(mount_path)?;
     if entries.is_empty() {
         return Err("Index .pi vide".to_string());
     }
@@ -304,8 +365,7 @@ pub fn move_story_in_pack_index(mount: &str, short_uuid: &str, direction: i32) -
         next
     };
 
-    entries.swap(idx, target_idx);
-    write_pack_index_entries(&index_path, &entries)
+    reorder_story_in_pack_index(mount, short_uuid, target_idx)
 }
 
 fn count_story_dirs(content_dir: &Path) -> usize {
@@ -715,9 +775,9 @@ pub fn get_lunii_inventory() -> LuniiInventoryResult {
 #[cfg(test)]
 mod tests {
     use super::{
-        compare_story, move_story_in_pack_index, probe_root, read_inventory, read_sidecar,
-        write_pack_index_entries, LuniiDeviceProbe, LuniiStoryEntry, SidecarData,
-        StoryDeviceStatus,
+        compare_story, move_story_in_pack_index, probe_root, read_inventory,
+        read_sidecar, reorder_story_in_pack_index, write_pack_index_entries,
+        LuniiDeviceProbe, LuniiStoryEntry, SidecarData, StoryDeviceStatus,
     };
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -872,6 +932,43 @@ mod tests {
             .map(super::short_uuid_from_uuid_bytes)
             .collect();
         assert_eq!(ordered, vec!["11223344", "AABBCCDD"]);
+    }
+
+    #[test]
+    fn reorder_story_rewrites_visible_index_and_preserves_hidden_index() {
+        let root = TempDir::new("lunii-reorder-order");
+        let mount = root.path().join("LUNII");
+        fs::create_dir_all(&mount).unwrap();
+
+        let mut first = [0u8; 16];
+        first[12..].copy_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD]);
+        let mut second = [0u8; 16];
+        second[12..].copy_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+        let mut third = [0u8; 16];
+        third[12..].copy_from_slice(&[0x55, 0x66, 0x77, 0x88]);
+        let mut hidden = [0u8; 16];
+        hidden[12..].copy_from_slice(&[0x99, 0xAA, 0xBB, 0xCC]);
+
+        let pi_path = mount.join(".pi");
+        let pi_hidden_path = mount.join(".pi.hidden");
+        write_pack_index_entries(&pi_path, &[first, second, third]).unwrap();
+        write_pack_index_entries(&pi_hidden_path, &[hidden]).unwrap();
+
+        reorder_story_in_pack_index(&mount.to_string_lossy(), "55667788", 0).unwrap();
+
+        let visible_entries = super::read_pack_index_entries(&pi_path).unwrap();
+        let visible_order: Vec<_> = visible_entries
+            .iter()
+            .map(super::short_uuid_from_uuid_bytes)
+            .collect();
+        assert_eq!(visible_order, vec!["55667788", "AABBCCDD", "11223344"]);
+
+        let hidden_entries = super::read_pack_index_entries(&pi_hidden_path).unwrap();
+        let hidden_order: Vec<_> = hidden_entries
+            .iter()
+            .map(super::short_uuid_from_uuid_bytes)
+            .collect();
+        assert_eq!(hidden_order, vec!["99AABBCC"]);
     }
 
     #[test]

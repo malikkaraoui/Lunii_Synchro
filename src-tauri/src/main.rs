@@ -79,6 +79,15 @@ fn move_story_in_pack_index(
     lunii_device::move_story_in_pack_index(&mount, &short_uuid, direction)
 }
 
+#[tauri::command]
+fn reorder_story_in_pack_index(
+    mount: String,
+    short_uuid: String,
+    new_index: usize,
+) -> Result<(), String> {
+    lunii_device::reorder_story_in_pack_index(&mount, &short_uuid, new_index)
+}
+
 // ── Réglages persistants ──────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -454,6 +463,7 @@ fn main() {
             write_sidecar_after_push,
             remove_orphan_story,
             move_story_in_pack_index,
+            reorder_story_in_pack_index,
             get_app_settings,
             save_device_name,
             save_last_folder,

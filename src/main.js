@@ -3,7 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
 
-const APP_VERSION = "2.1.7";
+const APP_VERSION = "2.1.8";
 // URL de vérification des mises à jour (GitHub releases API)
 
 // ── État ──────────────────────────────────────────────────────────────────────
@@ -16,6 +16,10 @@ let pendingIds     = new Set(); // story_id en attente de sync
 let pendingDeletes = new Set(); // short_uuid en attente de suppression
 let syncing        = false;
 let reordering     = false;
+let draggingStory  = false;
+let draggedStoryUuid = null;
+let draggedStoryIndex = -1;
+let draggedDropIndex = null;
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const $deviceBadge     = document.getElementById("device-badge");
@@ -294,7 +298,7 @@ function openRenameModal(id) {
 
 // ── Polling device (3s) ───────────────────────────────────────────────────────
 async function pollDevice() {
-  if (syncing || reordering) return;
+  if (syncing || reordering || draggingStory) return;
   try {
     const probe = await invoke("probe_lunii_device");
     if (probe.connected && probe.mount) {
@@ -384,6 +388,55 @@ function renderStorage(st) {
   $storageWrap.classList.remove("hidden");
 }
 
+async function refreshDeviceInventory() {
+  if (!deviceMount) return;
+  const inv = await invoke("get_lunii_inventory");
+  deviceStories = inv.stories || [];
+  renderDeviceList();
+  refreshFolderBadges();
+  updateSyncButton();
+}
+
+function moveStoryLocally(fromIndex, toIndex) {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= deviceStories.length) {
+    return;
+  }
+  const [story] = deviceStories.splice(fromIndex, 1);
+  deviceStories.splice(toIndex, 0, story);
+}
+
+function clearStoryDropMarkers() {
+  document.querySelectorAll(".story-row").forEach(row => {
+    row.classList.remove("story-row-dragging", "story-drop-before", "story-drop-after");
+  });
+}
+
+function resetStoryDragState() {
+  draggingStory = false;
+  draggedStoryUuid = null;
+  draggedStoryIndex = -1;
+  draggedDropIndex = null;
+  clearStoryDropMarkers();
+}
+
+function updateStoryDropMarker(row, before) {
+  clearStoryDropMarkers();
+  if (!row) return;
+  if (draggedStoryIndex >= 0) {
+    const draggingRow = document.querySelector(`.story-row[data-story-index="${draggedStoryIndex}"]`);
+    draggingRow?.classList.add("story-row-dragging");
+  }
+  row.classList.add(before ? "story-drop-before" : "story-drop-after");
+}
+
+function computeDropPlacement(row, clientY) {
+  const targetIndex = Number(row.dataset.storyIndex || -1);
+  const rect = row.getBoundingClientRect();
+  const before = clientY < rect.top + rect.height / 2;
+  const dropIndex = before ? targetIndex : targetIndex + 1;
+  return { targetIndex, before, dropIndex };
+}
+
 function renderDeviceList() {
   $deviceEmpty.classList.add("hidden");
   $deviceHeader.style.display = "";
@@ -397,6 +450,57 @@ function renderDeviceList() {
     const displayName = s.title || s.shortUuid;
     const row = document.createElement("div");
     row.className = "story-row";
+    row.dataset.storyIndex = String(idx);
+    row.dataset.shortUuid = s.shortUuid;
+    row.draggable = !syncing && !reordering;
+
+    row.addEventListener("dragstart", (event) => {
+      if (syncing || reordering) {
+        event.preventDefault();
+        return;
+      }
+      draggingStory = true;
+      draggedStoryUuid = s.shortUuid;
+      draggedStoryIndex = idx;
+      draggedDropIndex = idx;
+      row.classList.add("story-row-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", s.shortUuid);
+      }
+    });
+
+    row.addEventListener("dragover", (event) => {
+      if (!draggingStory || syncing || reordering || draggedStoryIndex < 0) return;
+      event.preventDefault();
+      const { before, dropIndex } = computeDropPlacement(row, event.clientY);
+      draggedDropIndex = dropIndex;
+      updateStoryDropMarker(row, before);
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    });
+
+    row.addEventListener("drop", async (event) => {
+      if (!draggingStory || syncing || reordering || draggedStoryIndex < 0 || !draggedStoryUuid) return;
+      event.preventDefault();
+
+      const { dropIndex } = computeDropPlacement(row, event.clientY);
+      const sourceUuid = draggedStoryUuid;
+      const sourceIndex = draggedStoryIndex;
+      const newIndex = dropIndex > sourceIndex ? dropIndex - 1 : dropIndex;
+
+      resetStoryDragState();
+      await reorderStory(sourceUuid, newIndex);
+    });
+
+    row.addEventListener("dragend", () => {
+      resetStoryDragState();
+    });
+
+    const handle = document.createElement("div");
+    handle.className = "story-drag-handle";
+    handle.title = "Glisser-déposer pour réorganiser";
+    handle.textContent = "⋮⋮";
+    row.appendChild(handle);
 
     const av = document.createElement("div");
     av.className = "story-avatar" + (hasName ? "" : " avatar-unmanaged");
@@ -468,6 +572,39 @@ function renderDeviceList() {
   $deviceList.replaceChildren(frag);
 }
 
+async function reorderStory(shortUuid, newIndex) {
+  if (!deviceMount || syncing || reordering) return;
+
+  const currentIdx = deviceStories.findIndex(s => s.shortUuid === shortUuid);
+  if (currentIdx < 0 || newIndex < 0 || newIndex >= deviceStories.length || currentIdx === newIndex) {
+    return;
+  }
+
+  const previousStories = [...deviceStories];
+  reordering = true;
+  moveStoryLocally(currentIdx, newIndex);
+  renderDeviceList();
+
+  try {
+    await invoke("reorder_story_in_pack_index", { mount: deviceMount, shortUuid, newIndex });
+    await refreshDeviceInventory();
+
+    const persistedIndex = deviceStories.findIndex(s => s.shortUuid === shortUuid);
+    if (persistedIndex === newIndex) {
+      showToast("Ordre des histoires mis à jour ✓", "ok", 2200);
+    } else {
+      showToast("Ordre non conservé par la boîte — correction appliquée côté app", "warn", 4200);
+    }
+  } catch (e) {
+    deviceStories = previousStories;
+    renderDeviceList();
+    showToast(`Ordre inchangé : ${e}`, "warn", 3500);
+  } finally {
+    reordering = false;
+    renderDeviceList();
+  }
+}
+
 async function moveStory(shortUuid, direction) {
   if (!deviceMount || syncing || reordering) return;
 
@@ -475,21 +612,7 @@ async function moveStory(shortUuid, direction) {
   const targetIdx = currentIdx + direction;
   if (currentIdx < 0 || targetIdx < 0 || targetIdx >= deviceStories.length) return;
 
-  reordering = true;
-  renderDeviceList();
-
-  try {
-    await invoke("move_story_in_pack_index", { mount: deviceMount, shortUuid, direction });
-    const [story] = deviceStories.splice(currentIdx, 1);
-    deviceStories.splice(targetIdx, 0, story);
-    renderDeviceList();
-    showToast("Ordre des histoires mis à jour ✓", "ok", 2200);
-  } catch (e) {
-    showToast(`Ordre inchangé : ${e}`, "warn", 3500);
-  } finally {
-    reordering = false;
-    renderDeviceList();
-  }
+  await reorderStory(shortUuid, targetIdx);
 }
 
 // ── Suppression stories ───────────────────────────────────────────────────────

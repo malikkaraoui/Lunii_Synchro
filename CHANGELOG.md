@@ -4,12 +4,28 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ---
 
-## [2.1.7] — 2026-05-22
+## [2.1.8] — 2026-05-22
+
 ### Ajouté
+
+- Glisser-déposer des histoires sur la boîte pour réorganiser plus vite la file de lecture
+
+### Corrigé
+
+- Réordonnancement maintenant réellement persisté sur la Lunii : réécriture cohérente de `.pi` **et** `.pi.hidden`, comme `Lunii.QT`
+- Après déplacement, l’app relit immédiatement l’inventaire de la boîte pour éviter l’effet “ça bouge puis ça revient”
+
+---
+
+## [2.1.7] — 2026-05-22
+
+### Ajouté
+
 - L’ordre affiché des histoires suit maintenant le vrai fichier d’index Lunii `.pi`, donc la liste dans l’app reflète enfin l’ordre réel de lecture sur la boîte
 - Boutons `↑` / `↓` pour déplacer une histoire sur la boîte sans retransférer les packs
 
 ### Corrigé
+
 - Tests backend ajoutés pour verrouiller la lecture de l’ordre `.pi` et éviter une nouvelle régression sur le classement des histoires
 
 ---
