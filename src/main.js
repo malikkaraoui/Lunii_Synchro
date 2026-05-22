@@ -84,8 +84,10 @@ async function runSplash() {
   try {
     const latest = await invoke("check_for_update");
     if (latest && latest !== APP_VERSION) {
-      $label.textContent = `Nouvelle version disponible : v${latest}`;
+      $label.textContent = `Nouvelle version disponible : v${latest} — cliquez pour télécharger`;
       $label.style.color = "#f0a32a";
+      $label.style.cursor = "pointer";
+      $label.onclick = () => invoke("open_release_page");
     } else {
       $label.textContent = "Application à jour ✓";
       $label.style.color = "#00957f";
@@ -193,7 +195,9 @@ $checkUpdateBtn.addEventListener("click", async () => {
     const latest = await invoke("check_for_update");
     if (latest && latest !== APP_VERSION) {
       $updateResult.classList.add("update-new");
-      $updateResult.textContent = `Nouvelle version disponible : v${latest}`;
+      $updateResult.textContent = `Nouvelle version disponible : v${latest} — cliquez pour télécharger`;
+      $updateResult.style.cursor = "pointer";
+      $updateResult.onclick = () => invoke("open_release_page");
     } else {
       $updateResult.classList.add("update-ok");
       $updateResult.textContent = "Application à jour ✓";

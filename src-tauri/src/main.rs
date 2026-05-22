@@ -280,6 +280,8 @@ fn locate_bridge(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 const GITHUB_RELEASE_URL: &str =
     "https://api.github.com/repos/malikkaraoui/Lunii_Synchro/releases/latest";
+const GITHUB_RELEASES_PAGE: &str =
+    "https://github.com/malikkaraoui/Lunii_Synchro/releases/latest";
 
 #[tauri::command]
 async fn check_for_update() -> Result<String, String> {
@@ -306,6 +308,11 @@ async fn check_for_update() -> Result<String, String> {
         .ok_or_else(|| "tag_name absent de la réponse".to_string())
 }
 
+#[tauri::command]
+fn open_release_page() -> Result<(), String> {
+    open::that(GITHUB_RELEASES_PAGE).map_err(|e| format!("Impossible d'ouvrir le navigateur : {e}"))
+}
+
 // ── Entrée principale ─────────────────────────────────────────────────────────
 
 fn main() {
@@ -329,6 +336,7 @@ fn main() {
             eject_device,
             start_sync,
             check_for_update,
+            open_release_page,
         ])
         .run(tauri::generate_context!())
         .expect("Erreur au démarrage de LuniiSync");
