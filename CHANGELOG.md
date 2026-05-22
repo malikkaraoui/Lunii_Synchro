@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ---
 
+## [2.1.10] — 2026-05-22
+
+### Corrigé
+
+- Drag & drop réécrit sans s’appuyer sur le DnD natif de la webview : déplacement à la souris plus fiable, avec dépôt réellement pris en compte en tête, entre deux lignes ou en bas de liste
+
+---
+
 ## [2.1.9] — 2026-05-22
 
 ### Corrigé
