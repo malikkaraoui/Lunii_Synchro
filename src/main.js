@@ -3,7 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
 
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.0.1";
 // URL de vérification des mises à jour (GitHub releases API)
 const UPDATE_URL  = "https://api.github.com/repos/karaoui-malik/luniisync/releases/latest";
 
@@ -239,7 +239,7 @@ function renderSettingsDevices() {
       </div>
       <div class="settings-device-btns">
         <button class="btn-device-action" data-id="${id}" data-action="rename" title="Renommer">✏</button>
-        <button class="btn-device-action del" data-id="${id}" data-action="delete" title="Supprimer">🗑</button>
+        <button class="btn-device-action del" data-id="${id}" data-action="delete" title="Supprimer"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="3,4 13,4"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><rect x="4" y="4" width="8" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg></button>
       </div>`;
     $list.appendChild(row);
   }
@@ -407,7 +407,7 @@ function renderDeviceList() {
     const isMarked = pendingDeletes.has(s.shortUuid);
     delBtn.className = "btn-delete" + (isMarked ? " marked" : "");
     delBtn.title = isMarked ? "Annuler la suppression" : "Supprimer de la boîte";
-    delBtn.innerHTML = isMarked ? "↩" : "🗑";
+    delBtn.innerHTML = isMarked ? "↩" : `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3,4 13,4"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><rect x="4" y="4" width="8" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg>`;
     if (isMarked) row.classList.add("story-row-delete");
     delBtn.addEventListener("click", () => toggleDelete(s.shortUuid, row, delBtn));
     row.appendChild(delBtn);
@@ -425,7 +425,7 @@ function toggleDelete(shortUuid, row, btn) {
     row.classList.remove("story-row-delete");
     btn.className = "btn-delete";
     btn.title = "Supprimer de la boîte";
-    btn.innerHTML = "🗑";
+    btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3,4 13,4"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><rect x="4" y="4" width="8" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg>`;
   } else {
     pendingDeletes.add(shortUuid);
     row.classList.add("story-row-delete");
