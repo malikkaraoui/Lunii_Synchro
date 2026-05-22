@@ -22,8 +22,11 @@ from datetime import datetime, timezone
 
 # ── Chemins ───────────────────────────────────────────────────────────────────
 SCRIPT_DIR   = Path(__file__).resolve().parent
-LUNII_QT_DIR = SCRIPT_DIR / "Lunii.QT"
-SPG_BIN      = SCRIPT_DIR / "studio-pack-generator"
+# Dépendances dans ~/.luniisync/ (répertoire utilisateur, toujours accessible en écriture)
+DEPS_DIR     = Path.home() / ".luniisync"
+DEPS_DIR.mkdir(exist_ok=True)
+LUNII_QT_DIR = DEPS_DIR / "Lunii.QT"
+SPG_BIN      = DEPS_DIR / "studio-pack-generator"
 SPG_VERSION  = "0.5.14"
 AUDIO_EXTS   = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
 
@@ -72,9 +75,9 @@ def _bootstrap_spg() -> None:
         data = resp.read()
 
     with zipfile.ZipFile(io.BytesIO(data)) as z:
-        z.extract(bin_name, SCRIPT_DIR)
+        z.extract(bin_name, DEPS_DIR)
 
-    src = SCRIPT_DIR / bin_name
+    src = DEPS_DIR / bin_name
     src.rename(SPG_BIN)
     SPG_BIN.chmod(0o755)
     emit("progress", step="setup", message="studio-pack-generator prêt.")
