@@ -4,7 +4,7 @@
   <p><strong>Transférez vos histoires audio sur  "Ma Fabrique à Histoires" — facilement, sans abonnement.</strong></p>
   <p><em>La conteuse mobile pour vos histoires et podcasts préférés... et bien plus !</em></p>
   <p>
-    <img src="https://img.shields.io/badge/version-2.1.8-00b49e?style=flat-square"/>
+    <img src="https://img.shields.io/badge/version-2.1.9-00b49e?style=flat-square"/>
     <img src="https://img.shields.io/badge/plateforme-macOS-lightgrey?style=flat-square&logo=apple"/>
     <img src="https://img.shields.io/badge/Tauri-2.0-blue?style=flat-square"/>
     <img src="https://img.shields.io/badge/Rust-%23000000?style=flat-square&logo=rust"/>

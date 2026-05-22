@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ---
 
+## [2.1.9] — 2026-05-22
+
+### Corrigé
+
+- Drag & drop des histoires fiabilisé : la zone de dépôt est maintenant calculée sur toute la liste, ce qui permet enfin de déposer une histoire entre deux autres ou directement en tête
+
+---
+
 ## [2.1.8] — 2026-05-22
 
 ### Ajouté

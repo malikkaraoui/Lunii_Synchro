@@ -3,7 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
 
-const APP_VERSION = "2.1.8";
+const APP_VERSION = "2.1.9";
 // URL de vérification des mises à jour (GitHub releases API)
 
 // ── État ──────────────────────────────────────────────────────────────────────
@@ -405,6 +405,10 @@ function moveStoryLocally(fromIndex, toIndex) {
   deviceStories.splice(toIndex, 0, story);
 }
 
+function getDeviceStoryRows() {
+  return [...$deviceList.querySelectorAll(".story-row")];
+}
+
 function clearStoryDropMarkers() {
   document.querySelectorAll(".story-row").forEach(row => {
     row.classList.remove("story-row-dragging", "story-drop-before", "story-drop-after");
@@ -419,23 +423,84 @@ function resetStoryDragState() {
   clearStoryDropMarkers();
 }
 
-function updateStoryDropMarker(row, before) {
-  clearStoryDropMarkers();
-  if (!row) return;
-  if (draggedStoryIndex >= 0) {
-    const draggingRow = document.querySelector(`.story-row[data-story-index="${draggedStoryIndex}"]`);
-    draggingRow?.classList.add("story-row-dragging");
-  }
-  row.classList.add(before ? "story-drop-before" : "story-drop-after");
+function restoreDraggingRowMarker() {
+  if (draggedStoryIndex < 0) return;
+  const draggingRow = document.querySelector(`.story-row[data-story-index="${draggedStoryIndex}"]`);
+  draggingRow?.classList.add("story-row-dragging");
 }
 
-function computeDropPlacement(row, clientY) {
-  const targetIndex = Number(row.dataset.storyIndex || -1);
-  const rect = row.getBoundingClientRect();
-  const before = clientY < rect.top + rect.height / 2;
-  const dropIndex = before ? targetIndex : targetIndex + 1;
-  return { targetIndex, before, dropIndex };
+function updateStoryDropMarkerForIndex(dropIndex) {
+  clearStoryDropMarkers();
+  restoreDraggingRowMarker();
+
+  const rows = getDeviceStoryRows();
+  if (!rows.length) return;
+
+  if (dropIndex <= 0) {
+    rows[0].classList.add("story-drop-before");
+    return;
+  }
+
+  if (dropIndex >= deviceStories.length) {
+    rows[rows.length - 1].classList.add("story-drop-after");
+    return;
+  }
+
+  const targetRow = rows.find(row => Number(row.dataset.storyIndex || -1) === dropIndex);
+  targetRow?.classList.add("story-drop-before");
 }
+
+function computeStoryDropIndex(clientY) {
+  const rows = getDeviceStoryRows();
+  if (!rows.length) return 0;
+
+  for (const row of rows) {
+    const rowIndex = Number(row.dataset.storyIndex || -1);
+    if (rowIndex === draggedStoryIndex) continue;
+
+    const rect = row.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (clientY < midY) {
+      return rowIndex;
+    }
+  }
+
+  return deviceStories.length;
+}
+
+$deviceList.addEventListener("dragenter", (event) => {
+  if (!draggingStory || syncing || reordering) return;
+  event.preventDefault();
+});
+
+$deviceList.addEventListener("dragover", (event) => {
+  if (!draggingStory || syncing || reordering || draggedStoryIndex < 0) return;
+  event.preventDefault();
+  draggedDropIndex = computeStoryDropIndex(event.clientY);
+  updateStoryDropMarkerForIndex(draggedDropIndex);
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+});
+
+$deviceList.addEventListener("dragleave", (event) => {
+  if (!draggingStory) return;
+  if (event.relatedTarget && $deviceList.contains(event.relatedTarget)) return;
+  clearStoryDropMarkers();
+  restoreDraggingRowMarker();
+});
+
+$deviceList.addEventListener("drop", async (event) => {
+  if (!draggingStory || syncing || reordering || draggedStoryIndex < 0 || !draggedStoryUuid) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  const rawDropIndex = draggedDropIndex ?? computeStoryDropIndex(event.clientY);
+  const sourceUuid = draggedStoryUuid;
+  const sourceIndex = draggedStoryIndex;
+  const newIndex = rawDropIndex > sourceIndex ? rawDropIndex - 1 : rawDropIndex;
+
+  resetStoryDragState();
+  await reorderStory(sourceUuid, newIndex);
+});
 
 function renderDeviceList() {
   $deviceEmpty.classList.add("hidden");
@@ -468,28 +533,6 @@ function renderDeviceList() {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", s.shortUuid);
       }
-    });
-
-    row.addEventListener("dragover", (event) => {
-      if (!draggingStory || syncing || reordering || draggedStoryIndex < 0) return;
-      event.preventDefault();
-      const { before, dropIndex } = computeDropPlacement(row, event.clientY);
-      draggedDropIndex = dropIndex;
-      updateStoryDropMarker(row, before);
-      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-    });
-
-    row.addEventListener("drop", async (event) => {
-      if (!draggingStory || syncing || reordering || draggedStoryIndex < 0 || !draggedStoryUuid) return;
-      event.preventDefault();
-
-      const { dropIndex } = computeDropPlacement(row, event.clientY);
-      const sourceUuid = draggedStoryUuid;
-      const sourceIndex = draggedStoryIndex;
-      const newIndex = dropIndex > sourceIndex ? dropIndex - 1 : dropIndex;
-
-      resetStoryDragState();
-      await reorderStory(sourceUuid, newIndex);
     });
 
     row.addEventListener("dragend", () => {

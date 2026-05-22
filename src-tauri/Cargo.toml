@@ -1,6 +1,6 @@
 [package]
 name        = "luniisync"
-version     = "2.1.8"
+version     = "2.1.9"
 edition     = "2021"
 description = "LuniiSync V2 — Transfert audio vers Lunii"
 
