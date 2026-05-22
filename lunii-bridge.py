@@ -327,6 +327,12 @@ def main() -> None:
     # ── Mise à jour index ─────────────────────────────────────────────────────
     try:
         device.update_pack_index()
+    except OSError as exc:
+        import errno as _errno
+        if exc.errno == _errno.EIO:
+            emit("error", message="Boîte éjectée pendant la synchronisation — rebranchez et relancez.")
+        else:
+            emit("error", message=f"update_pack_index échoué : {exc}")
     except Exception as exc:
         emit("error", message=f"update_pack_index échoué : {exc}")
 

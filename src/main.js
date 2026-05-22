@@ -3,7 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
 
-const APP_VERSION = "2.0.9";
+const APP_VERSION = "2.1.0";
 // URL de vérification des mises à jour (GitHub releases API)
 
 // ── État ──────────────────────────────────────────────────────────────────────
@@ -309,18 +309,22 @@ async function pollDevice() {
       $ejectBtn.classList.remove("hidden");
       // Affiche le nom ou propose d'en donner un
       if (deviceId) {
-        // Migration automatique : si serial-ID inconnu, hériter le nom de l'ancienne entrée UUID
-        if (deviceId.startsWith("serial-") && !deviceName(deviceId)) {
+        // Migration : purger toutes les vieilles entrées UUID dès qu'une entrée serial existe
+        if (deviceId.startsWith("serial-")) {
           const devices = appSettings.devices || {};
-          const oldEntry = Object.entries(devices).find(([id, info]) =>
-            !id.startsWith("serial-") && info && info.name
-          );
-          if (oldEntry) {
-            appSettings.devices[deviceId] = { name: oldEntry[1].name, lastFolder: oldEntry[1].lastFolder || "" };
-            for (const [id] of Object.entries(devices)) {
-              if (!id.startsWith("serial-")) delete appSettings.devices[id];
+          const oldUUIDs = Object.keys(devices).filter(id => !id.startsWith("serial-"));
+          if (oldUUIDs.length > 0) {
+            if (!deviceName(deviceId)) {
+              const oldEntry = Object.entries(devices).find(([id, info]) =>
+                !id.startsWith("serial-") && info && info.name
+              );
+              if (oldEntry) {
+                appSettings.devices[deviceId] = { name: oldEntry[1].name, lastFolder: oldEntry[1].lastFolder || "" };
+                await invoke("save_device_name", { deviceId, name: oldEntry[1].name });
+              }
             }
-            await invoke("save_device_name", { deviceId, name: oldEntry[1].name });
+            for (const id of oldUUIDs) delete appSettings.devices[id];
+            await invoke("save_last_folder", { deviceId, folder: appSettings.devices[deviceId]?.lastFolder || "" });
           }
         }
         renderDeviceName(deviceId);
