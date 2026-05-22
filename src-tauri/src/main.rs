@@ -313,6 +313,84 @@ fn open_release_page() -> Result<(), String> {
     open::that(GITHUB_RELEASES_PAGE).map_err(|e| format!("Impossible d'ouvrir le navigateur : {e}"))
 }
 
+#[tauri::command]
+async fn download_and_install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .user_agent("LuniiSync/2.0")
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // 1. Récupérer l'URL de l'asset .tar.gz depuis la release GitHub
+    let release: serde_json::Value = client
+        .get(GITHUB_RELEASE_URL)
+        .send().await.map_err(|e| e.to_string())?
+        .json().await.map_err(|e| e.to_string())?;
+
+    let asset_url = release["assets"]
+        .as_array()
+        .and_then(|arr| arr.iter().find(|a| {
+            a["name"].as_str().map(|n| n.ends_with(".tar.gz")).unwrap_or(false)
+        }))
+        .and_then(|a| a["browser_download_url"].as_str())
+        .ok_or("Aucun asset .tar.gz trouvé dans la release")?
+        .to_string();
+
+    // 2. Télécharger l'archive
+    let bytes = client.get(&asset_url)
+        .send().await.map_err(|e| e.to_string())?
+        .bytes().await.map_err(|e| e.to_string())?;
+
+    let tmp_dir = std::env::temp_dir();
+    let archive_path = tmp_dir.join("luniisync_update.tar.gz");
+    let extract_dir = tmp_dir.join("luniisync_update");
+
+    std::fs::write(&archive_path, &bytes).map_err(|e| e.to_string())?;
+
+    // 3. Extraire
+    let _ = std::fs::remove_dir_all(&extract_dir);
+    std::fs::create_dir_all(&extract_dir).map_err(|e| e.to_string())?;
+    let status = std::process::Command::new("tar")
+        .args(["-xzf", archive_path.to_str().unwrap(),
+               "-C", extract_dir.to_str().unwrap()])
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !status.success() {
+        return Err("Extraction de l'archive échouée".to_string());
+    }
+
+    // 4. Trouver le chemin du bundle .app courant (exe → .app/Contents/MacOS/binary)
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let app_bundle = exe.ancestors().nth(3)
+        .ok_or("Impossible de déterminer le chemin du bundle")?.to_path_buf();
+    let app_parent = app_bundle.parent()
+        .ok_or("Impossible de trouver le dossier parent")?.to_string_lossy().into_owned();
+    let app_bundle_str = app_bundle.to_string_lossy().into_owned();
+
+    // 5. Script shell : attend la fermeture, remplace, relance
+    let script = format!(
+        "#!/bin/bash\nsleep 2\nrm -rf '{app_bundle_str}'\n\
+         extracted=$(find '{extract}' -maxdepth 1 -name '*.app' | head -1)\n\
+         cp -R \"$extracted\" '{app_parent}/'\n\
+         xattr -rd com.apple.quarantine '{app_bundle_str}' 2>/dev/null\n\
+         open '{app_bundle_str}'\n\
+         rm -rf '{archive}' '{extract}' \"$0\"\n",
+        extract = extract_dir.to_str().unwrap(),
+        archive = archive_path.to_str().unwrap(),
+    );
+    let script_path = tmp_dir.join("luniisync_install.sh");
+    std::fs::write(&script_path, &script).map_err(|e| e.to_string())?;
+
+    std::process::Command::new("bash")
+        .arg(&script_path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    // 6. Quitter l'app courante
+    app.exit(0);
+    Ok(())
+}
+
 // ── Entrée principale ─────────────────────────────────────────────────────────
 
 fn main() {
@@ -337,6 +415,7 @@ fn main() {
             start_sync,
             check_for_update,
             open_release_page,
+            download_and_install_update,
         ])
         .run(tauri::generate_context!())
         .expect("Erreur au démarrage de LuniiSync");

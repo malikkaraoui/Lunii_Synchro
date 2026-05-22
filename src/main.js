@@ -84,10 +84,10 @@ async function runSplash() {
   try {
     const latest = await invoke("check_for_update");
     if (latest && latest !== APP_VERSION) {
-      $label.textContent = `Nouvelle version disponible : v${latest} — cliquez pour télécharger`;
+      $label.textContent = `Nouvelle version disponible : v${latest} — cliquez pour installer`;
       $label.style.color = "#f0a32a";
       $label.style.cursor = "pointer";
-      $label.onclick = () => invoke("open_release_page");
+      $label.onclick = () => { $label.textContent = "Téléchargement en cours…"; invoke("download_and_install_update"); };
     } else {
       $label.textContent = "Application à jour ✓";
       $label.style.color = "#00957f";
@@ -195,9 +195,14 @@ $checkUpdateBtn.addEventListener("click", async () => {
     const latest = await invoke("check_for_update");
     if (latest && latest !== APP_VERSION) {
       $updateResult.classList.add("update-new");
-      $updateResult.textContent = `Nouvelle version disponible : v${latest} — cliquez pour télécharger`;
+      $updateResult.textContent = `Nouvelle version disponible : v${latest} — cliquez pour installer`;
       $updateResult.style.cursor = "pointer";
-      $updateResult.onclick = () => invoke("open_release_page");
+      $updateResult.onclick = () => {
+        $updateResult.textContent = "Téléchargement en cours… (l'app va redémarrer)";
+        $updateResult.style.cursor = "default";
+        $updateResult.onclick = null;
+        invoke("download_and_install_update");
+      };
     } else {
       $updateResult.classList.add("update-ok");
       $updateResult.textContent = "Application à jour ✓";
