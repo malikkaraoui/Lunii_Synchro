@@ -218,16 +218,38 @@ def _import_one(device, audio_path: Path, work_dir: Path) -> bool:
                     z.write(p, p.relative_to(patch_dir))
         zip_path = patched_zip
 
-    # Snapshot des UUIDs avant import pour détecter le nouveau
+    # Vérifier que le device est encore accessible avant d'appeler import_story
     mount = Path(device.mount_point)
+    if not mount.is_dir():
+        emit("error", file=audio_path.name, message="Boîte déconnectée — rebranchez et relancez.")
+        return False
+
     content_dir = mount / ".content"
     before_uuids = {d.name for d in content_dir.iterdir() if d.is_dir()} if content_dir.is_dir() else set()
 
+    import concurrent.futures as _cf
+    import errno as _errno
+
+    def _do_import():
+        return device.import_story(str(zip_path))
+
     try:
-        ok = device.import_story(str(zip_path))
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(_do_import)
+            try:
+                ok = future.result(timeout=120)
+            except _cf.TimeoutError:
+                emit("error", file=audio_path.name, message="Timeout import (>120s) — boîte trop lente ou déconnectée.")
+                return False
         if ok:
             _write_sidecar(device, audio_path.stem, before_uuids)
         return bool(ok)
+    except OSError as exc:
+        if exc.errno == _errno.EIO:
+            emit("error", file=audio_path.name, message="Boîte éjectée pendant le transfert — rebranchez et relancez.")
+        else:
+            emit("error", file=audio_path.name, message=str(exc))
+        return False
     except Exception as exc:
         emit("error", file=audio_path.name, message=str(exc))
         return False
