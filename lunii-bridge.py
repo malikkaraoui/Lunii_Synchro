@@ -84,37 +84,81 @@ def _bootstrap_spg() -> None:
 
 
 # ── Patch lecture directe ─────────────────────────────────────────────────────
-def _patch_direct_play(story_dir: Path) -> None:
-    """Supprime le nœud TTS titre dans story.json pour lecture immédiate."""
-    story_json_path = story_dir / "story.json"
-    if not story_json_path.exists():
-        return
+def _patch_direct_play(zip_path: Path) -> None:
+    """Réécrit story.json pour que l'audio démarre directement à la sélection."""
     try:
-        with open(story_json_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        stages = data.get("stageNodes", [])
-        if stages and stages[0].get("type") == "stage" and not stages[0].get("audio"):
-            stages[0].pop("okTransition", None)
-        with open(story_json_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        with zipfile.ZipFile(zip_path) as z:
+            story_json = json.loads(z.read("story.json"))
+            files = {name: z.read(name) for name in z.namelist()}
+
+        nodes = story_json.get("stageNodes", [])
+        square_one = next((n for n in nodes if n.get("squareOne")), None)
+        podcast_node = next((n for n in nodes if not n.get("squareOne")), None)
+
+        if not square_one or not podcast_node:
+            return
+
+        square_one["audio"] = podcast_node.get("audio", "")
+        square_one["controlSettings"] = {
+            "autoplay": False,
+            "home": True,
+            "ok": False,
+            "pause": True,
+            "wheel": False,
+        }
+        square_one["okTransition"] = None
+        square_one["homeTransition"] = None
+
+        story_json["stageNodes"] = [square_one]
+        story_json["actionNodes"] = []
+        story_json["listNodes"] = []
+
+        files["story.json"] = json.dumps(story_json).encode()
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+            for name, data in files.items():
+                z.writestr(name, data)
     except Exception:
         pass  # Non bloquant
 
 
 # ── Couverture PNG ────────────────────────────────────────────────────────────
-def _inject_cover(story_dir: Path, title: str) -> None:
-    """Génère une couverture PNG minimale si absente (Pillow optionnel)."""
-    cover_path = story_dir / "thumbnail.png"
-    if cover_path.exists():
-        return
+def _inject_cover_image(zip_path: Path, title: str) -> None:
+    """Ajoute une couverture directement dans le ZIP si aucune image n'est référencée."""
     try:
         from PIL import Image, ImageDraw  # type: ignore
-        img = Image.new("RGB", (320, 240), color=(30, 80, 180))
-        draw = ImageDraw.Draw(img)
-        draw.text((20, 100), title[:40], fill=(255, 255, 255))
-        img.save(cover_path)
     except Exception:
-        pass  # Non bloquant ; SPG peut continuer sans couverture
+        return
+
+    try:
+        with zipfile.ZipFile(zip_path) as z:
+            names = z.namelist()
+            story_json = json.loads(z.read("story.json"))
+            has_images = any(snode.get("image") for snode in story_json.get("stageNodes", []))
+            if has_images:
+                return
+            files = {name: z.read(name) for name in names}
+
+        img = Image.new("RGB", (320, 240), color=(20, 50, 120))
+        draw = ImageDraw.Draw(img)
+        draw.text((160, 120), title[:28], fill=(255, 255, 255), anchor="mm")
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        cover_bytes = buf.getvalue()
+        cover_name = hashlib.sha1(cover_bytes).hexdigest() + ".png"
+
+        for snode in story_json.get("stageNodes", []):
+            snode["image"] = cover_name
+
+        files["story.json"] = json.dumps(story_json).encode()
+        files[f"assets/{cover_name}"] = cover_bytes
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+            for name, data in files.items():
+                z.writestr(name, data)
+    except Exception:
+        pass  # Non bloquant
 
 
 # ── Génération ZIP via SPG ────────────────────────────────────────────────────
@@ -124,9 +168,6 @@ def _generate_zip(audio_path: Path, work_dir: Path) -> Optional[Path]:
 
     # Copier fichier audio
     shutil.copy2(audio_path, story_dir / audio_path.name)
-
-    # Couverture optionnelle
-    _inject_cover(story_dir, audio_path.stem)
 
     # Appel SPG
     env = os.environ.copy()
@@ -168,7 +209,10 @@ def _generate_zip(audio_path: Path, work_dir: Path) -> Optional[Path]:
         emit("error", file=audio_path.name, message="Aucun ZIP généré par SPG")
         return None
 
-    return zips[0]
+    zip_path = zips[0]
+    _inject_cover_image(zip_path, audio_path.stem)
+    _patch_direct_play(zip_path)
+    return zip_path
 
 
 # ── Sidecar LuniiSync ─────────────────────────────────────────────────────────
@@ -202,21 +246,6 @@ def _import_one(device, audio_path: Path, work_dir: Path) -> bool:
     zip_path = _generate_zip(audio_path, work_dir)
     if zip_path is None:
         return False
-
-    # Patch lecture directe sur le ZIP extrait
-    with tempfile.TemporaryDirectory(prefix="lunii-patch-") as patch_tmp:
-        patch_dir = Path(patch_tmp)
-        import zipfile as zf
-        with zf.ZipFile(zip_path, "r") as z:
-            z.extractall(patch_dir)
-        _patch_direct_play(patch_dir)
-        # Remballer
-        patched_zip = zip_path.with_suffix(".patched.zip")
-        with zf.ZipFile(patched_zip, "w", zf.ZIP_DEFLATED) as z:
-            for p in patch_dir.rglob("*"):
-                if p.is_file():
-                    z.write(p, p.relative_to(patch_dir))
-        zip_path = patched_zip
 
     # Vérifier que le device est encore accessible avant d'appeler import_story
     mount = Path(device.mount_point)

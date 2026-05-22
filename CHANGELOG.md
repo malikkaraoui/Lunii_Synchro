@@ -4,6 +4,14 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ---
 
+## [2.1.6] — 2026-05-22
+### Corrigé
+- Correctif critique de génération des packs Lunii : restauration du patch ZIP complet dans `lunii-bridge.py` pour une **lecture directe réellement lisible** sur la boîte
+- Injection fiable d'une image de couverture dans le ZIP final (`assets/*.png`) pour éviter les histoires visibles mais non ouvrables
+- Versions application réalignées en `2.1.6` (`package.json`, `Cargo.toml`, `tauri.conf.json`, `APP_VERSION`) afin que la détection de mise à jour GitHub voie correctement la nouvelle release
+
+---
+
 ## [2.1.5] — 2026-05-22
 ### Corrigé
 - **Fix critique** : `update_pack_index()` réessayé 3 fois avec pause de 1,5 s entre chaque tentative (évite l'erreur I/O post-transfert)
