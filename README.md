@@ -102,5 +102,12 @@ Basé sur les travaux open source de :
 - [studio-pack-generator](https://github.com/jersou/studio-pack-generator) — Génération de story packs
 
 ---
+AVERTISSEMENT
+
+Ce logiciel repose sur mes propres recherches de rétro-ingénierie, limitées à la collecte des informations nécessaires à son interopérabilité avec le dispositif Lunii* Storyteller, et ne diffuse aucun contenu protégé.
+
+Malgré tous nos efforts pour garantir la sécurité de ce logiciel, veuillez noter qu'il est fourni SANS GARANTIE et peut endommager votre appareil.
+
+* Lunii est une marque déposée de Lunii SAS. Je ne suis en aucun cas affilié à Lunii SAS.
 
 *Usage personnel uniquement. Non affilié à Lunii SAS.*
