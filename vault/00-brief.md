@@ -8,28 +8,29 @@
 
 ## État court
 
-- Projet : **Synchro Boîte à histoires** (repo : `malikkaraoui/Synchro_boite_a_histoires`)
-- Phase : **Production — maintenance active** (dernière release : v2.1.12 le 2026-05-22)
+- Projet : **Synchro Boîte à histoires** (repo : `malikkaraoui/Lunii_Synchro`)
+- Phase : **Production + Mac App Store en préparation** (dernière release : v2.1.12)
 - Stack : **Tauri 2.0 (Rust) + Vanilla JS/HTML/CSS + Python sidecar (boite-bridge.py)**
-- Objectif courant : améliorer la fiabilité et l'UX du transfert audio vers la boîte à histoires
-- Prochaine action utile : implémenter l'affichage des pochettes d'histoires (TODO.md)
+- Objectif courant : **finaliser la variante Mac App Store** (validation device physique V2 restante)
+- Prochaine action utile : brancher une boîte V2 en USB et tester l'import avec `--features mac-app-store`
 
-## À lire en priorité
+## Deux variantes de distribution
 
-- .claude/CLAUDE.md §0 — contexte session courant
-- vault/40-roadmap.md — prochaines phases
-- TODO.md — fonctionnalités planifiées
+| Variante      | Dossier            | Distribution                                          | État                                                                 |
+|---------------|--------------------|-------------------------------------------------------|----------------------------------------------------------------------|
+| Directe       | `src-tauri/`       | `.dmg` (macOS) + `.exe` (Windows) via GitHub Releases | ✅ En production                                                     |
+| Mac App Store | `mac-app-store/`   | Soumission App Store Connect                          | 🔶 En préparation — 7 bloqueurs corrigés, validation device restante |
 
 ## Décisions actives
 
-- Architecture hybride Rust+Python maintenue (Rust pour la détection/inventaire, Python pour la crypto boîte à histoires)
+- Architecture hybride Rust+Python maintenue pour la variante directe (boite-bridge.py)
+- Variante App Store : 100% Rust natif, zéro Python, zéro téléchargement runtime
 - Identification device par `serial-*` (plus stable que UUID FAT32)
-- Signature macOS ad-hoc (`-`) par défaut pour les builds directs
-- Distribution via GitHub Releases avec updater intégré
+- Signature macOS ad-hoc (`-`) pour les builds directs
+- Distribution via GitHub Releases avec updater intégré (variante directe uniquement)
 
 ## Risques / angles morts
 
-- Dépendance `StoryBox.QT` (bibliothèque tierce) — si l'API boîte à histoires change, le pack generator est cassé
-- Builds Windows non testés en production (workflow GitHub ajouté en v2.1.11 mais non validé)
-- Signature macOS ad-hoc : Apple peut encore bloquer sur certaines configurations
-- Dépendances Python téléchargées au premier transfert depuis Internet (point de fragilité)
+- Validation XXTEA sur device physique V2 non faite — c'est le seul bloqueur restant avant soumission App Store
+- Support boîte V3 (AES-128-CBC, md_version ≥ 6) non implémenté dans la variante App Store
+- Builds Windows non testés en production (workflow GitHub Actions ajouté, non validé en réel)
