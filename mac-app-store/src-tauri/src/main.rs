@@ -1,17 +1,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_settings;
+mod lunii_crypto;
 mod lunii_device;
+mod lunii_import;
 mod lunii_sync;
-mod studio_story;
 mod story_pack;
+mod studio_story;
 
 use lunii_device::{LuniiDeviceInfo, LuniiDeviceProbe, LuniiInventoryResult, StoryCompareResult};
 use lunii_sync::{AudioFile, StorageInfo, SyncPlan};
 #[cfg(not(feature = "mac-app-store"))]
 use std::path::PathBuf;
 #[cfg(not(feature = "mac-app-store"))]
-use tauri::{Emitter, Manager};
+use tauri::Manager;
+use tauri::Emitter;
 
 // ── Commandes device ──────────────────────────────────────────────────────────
 
@@ -209,8 +212,9 @@ async fn eject_device(mount: String) -> Result<(), String> {
 
 // ── Lancement du bridge Python ────────────────────────────────────────────────
 
-/// Lance lunii-bridge.py en subprocess, stream les lignes JSON vers le frontend
-/// via l'événement Tauri `sync:line`, et retourne quand le process termine.
+/// Importe des fichiers audio vers la Lunii.
+/// - App Store : pipeline natif Rust (génération pack + import crypto natif)
+/// - Distribution directe : délègue à lunii-bridge.py (Python + Lunii.QT)
 #[tauri::command]
 async fn start_sync(
     app: tauri::AppHandle,
@@ -220,11 +224,8 @@ async fn start_sync(
 ) -> Result<String, String> {
     #[cfg(feature = "mac-app-store")]
     {
-        let _ = (app, folder_path, device_mount, selected_files);
-        return Err(
-            "L’import audio n’est pas encore disponible dans cette variante Mac App Store."
-                .to_string(),
-        );
+        let _ = folder_path;
+        return start_sync_native(app, device_mount, selected_files).await;
     }
 
     #[cfg(not(feature = "mac-app-store"))]
@@ -293,6 +294,110 @@ async fn start_sync(
         ))
     }
     }
+}
+
+// ── Import natif App Store ─────────────────────────────────────────────────────
+
+/// Pipeline d'import natif pour la variante Mac App Store.
+/// Pour chaque fichier MP3 sélectionné :
+///   1. Génère un story pack ZIP (remplace SPG)
+///   2. Injecte une couverture placeholder si absente
+///   3. Patche story.json pour lecture directe
+///   4. Importe vers la Lunii via crypto XXTEA natif
+#[cfg(feature = "mac-app-store")]
+async fn start_sync_native(
+    app: tauri::AppHandle,
+    device_mount: String,
+    selected_files: Vec<String>,
+) -> Result<String, String> {
+    let total = selected_files.len();
+    emit_sync_line(&app, serde_json::json!({
+        "type": "progress", "step": "scan",
+        "message": format!("{total} fichier(s) à transférer.")
+    }));
+
+    let mut added = 0u32;
+    let mut errors = 0u32;
+
+    for (i, audio_path_str) in selected_files.iter().enumerate() {
+        let audio_path = std::path::Path::new(audio_path_str);
+        let display = audio_path
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let story_id = audio_path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+
+        emit_sync_line(&app, serde_json::json!({
+            "type": "progress", "step": "import",
+            "file": display, "current": i + 1, "total": total,
+            "message": format!("[{}/{}] {}…", i + 1, total, display)
+        }));
+
+        // 1. Générer le ZIP
+        let zip_path = match lunii_import::generate_simple_pack(audio_path) {
+            Ok(p) => p,
+            Err(e) => {
+                emit_sync_line(&app, serde_json::json!({"type":"error","file":display,"message":e}));
+                errors += 1;
+                continue;
+            }
+        };
+        let tmp_dir = zip_path.parent().map(|p| p.to_path_buf());
+
+        // 2. Injecter couverture + patcher story.json
+        let _ = story_pack::inject_placeholder_cover_if_missing(&zip_path, &story_id);
+        let _ = story_pack::patch_direct_play_zip(&zip_path);
+
+        // 3. Hash SHA-256 du fichier source
+        let hash = lunii_sync::compute_file_hash(audio_path).unwrap_or_default();
+
+        // 4. Import
+        let app_ref = app.clone();
+        let result = lunii_import::import_story(
+            &device_mount,
+            &zip_path,
+            &story_id,
+            &hash,
+            &move |msg| {
+                emit_sync_line(&app_ref, serde_json::json!({
+                    "type": "progress", "step": "import", "message": msg
+                }));
+            },
+        );
+
+        if let Some(dir) = tmp_dir {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+
+        match result {
+            Ok(_) => {
+                added += 1;
+                emit_sync_line(&app, serde_json::json!({
+                    "type": "progress", "step": "import",
+                    "file": display,
+                    "message": format!("✓ {display}")
+                }));
+            }
+            Err(e) => {
+                errors += 1;
+                emit_sync_line(&app, serde_json::json!({"type":"error","file":display,"message":e}));
+            }
+        }
+    }
+
+    emit_sync_line(&app, serde_json::json!({
+        "type": "done",
+        "added": added, "errors": errors,
+        "message": format!("Terminé : {added} ajouté(s), {errors} erreur(s).")
+    }));
+    Ok("ok".to_string())
+}
+
+fn emit_sync_line(app: &tauri::AppHandle, payload: serde_json::Value) {
+    let _ = app.emit("sync:line", payload.to_string());
 }
 
 /// Répare le fichier d'index (.pi) de la Lunii via --repair-index dans le bridge Python.
