@@ -3,8 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
 
-const APP_VERSION = "2.1.11";
-const APP_STORE_IMPORT_MESSAGE = "Import audio temporairement indisponible dans cette variante Mac App Store.";
+const APP_VERSION = "2.1.12";
 // URL de vérification des mises à jour (GitHub releases API)
 
 // ── État ──────────────────────────────────────────────────────────────────────
@@ -47,6 +46,8 @@ const $folderHeader    = document.getElementById("folder-list-header");
 const $folderCount     = document.getElementById("folder-file-count");
 const $syncAvailabilityNote = document.getElementById("sync-availability-note");
 const $addAllBtn       = document.getElementById("add-all-btn");
+const $selectLuniiBtn  = document.getElementById("select-lunii-btn");
+const $deviceEmptyLabel = document.getElementById("device-empty-label");
 const $removeAllBtn    = document.getElementById("remove-all-btn");
 const $syncStatusBar   = document.getElementById("sync-status-bar");
 const $syncStatusText  = document.getElementById("sync-status-text");
@@ -82,16 +83,14 @@ function isMacAppStoreChannel() {
 
 function applyDistributionChannelUi(channel = distributionChannel) {
   const isAppStore = channel === "mac-app-store";
-  importAudioSupported = !isAppStore;
-  $syncAvailabilityNote?.classList.toggle("hidden", !isAppStore);
-  $pickBtn.disabled = isAppStore;
-  $pickBtn.title = isAppStore ? APP_STORE_IMPORT_MESSAGE : "Parcourir…";
-
-  if (isAppStore && pendingIds.size > 0) {
-    pendingIds.clear();
-    if (audioFiles.length > 0) renderFolderList();
+  importAudioSupported = true;
+  $syncAvailabilityNote?.classList.add("hidden");
+  $pickBtn.disabled = false;
+  $pickBtn.title = "Parcourir…";
+  $selectLuniiBtn?.classList.toggle("hidden", !isAppStore);
+  if ($deviceEmptyLabel) {
+    $deviceEmptyLabel.textContent = isAppStore ? "Sélectionnez votre Lunii" : "Branchez votre Lunii";
   }
-
   updateSyncButton();
 }
 
@@ -355,7 +354,18 @@ function openRenameModal(id) {
 async function pollDevice() {
   if (syncing || reordering || draggingStory) return;
   try {
-    const probe = await invoke("probe_lunii_device");
+    let probe;
+    if (isMacAppStoreChannel() && deviceMount) {
+      const valid = await invoke("validate_lunii_mount", { path: deviceMount });
+      if (!valid) deviceMount = null;
+      probe = valid
+        ? { connected: true, mount: deviceMount, deviceId: null, markerFound: true, contentDirPresent: true, storyDirCount: 0 }
+        : { connected: false };
+    } else if (isMacAppStoreChannel()) {
+      probe = { connected: false };
+    } else {
+      probe = await invoke("probe_lunii_device");
+    }
     if (probe.connected && probe.mount) {
       deviceMount = probe.mount;
       deviceId = probe.deviceId || null;
@@ -365,6 +375,7 @@ async function pollDevice() {
       $devicePath.classList.remove("hidden");
       $ejectBtn.classList.remove("hidden");
       $repairBtn.classList.remove("hidden");
+      $selectLuniiBtn?.classList.add("hidden");
       // Affiche le nom ou propose d'en donner un
       if (deviceId) {
         // Migration : purger toutes les vieilles entrées UUID dès qu'une entrée serial existe
@@ -425,6 +436,7 @@ async function pollDevice() {
       $deviceFwLabel.classList.add("hidden");
       const $t = document.getElementById("panel-device-title");
       if ($t) { $t.textContent = "Boîte à histoires"; $t.classList.remove("device-named"); }
+      if (isMacAppStoreChannel()) $selectLuniiBtn?.classList.remove("hidden");
     }
   } catch (e) {
     deviceMount = null;
@@ -789,16 +801,33 @@ async function loadFolder(folderPath) {
 }
 
 $pickBtn.addEventListener("click", async () => {
-  if (!importAudioSupported) {
-    showToast(APP_STORE_IMPORT_MESSAGE, "warn", 5000);
-    return;
-  }
-
   const selected = await open({ directory: true, multiple: false });
   if (!selected) return;
   await invoke("save_last_folder", { folder: selected });
   appSettings.lastAudioFolder = selected;
   await loadFolder(selected);
+});
+
+$selectLuniiBtn?.addEventListener("click", async () => {
+  try {
+    const selected = await open({ directory: true, multiple: false, title: "Sélectionner la boîte à histoires Lunii" });
+    if (!selected) return;
+    const path = typeof selected === "string" ? selected : selected[0];
+    if (!path) return;
+    const valid = await invoke("validate_lunii_mount", { path });
+    if (!valid) {
+      showToast("Ce dossier ne semble pas être une boîte Lunii (fichier .md absent).", "error");
+      return;
+    }
+    deviceMount = path;
+    $selectLuniiBtn.classList.add("hidden");
+    await pollDevice();
+  } catch (e) {
+    const msg = String(e);
+    if (!msg.includes("annulé") && !msg.toLowerCase().includes("cancel")) {
+      showToast("Erreur lors de la sélection : " + msg, "error");
+    }
+  }
 });
 
 function refreshFolderBadges() {
@@ -891,11 +920,6 @@ function renderFolderList() {
 }
 
 function togglePending(storyId, row, av, btn) {
-  if (!importAudioSupported) {
-    showToast(APP_STORE_IMPORT_MESSAGE, "warn", 5000);
-    return;
-  }
-
   if (pendingIds.has(storyId)) {
     pendingIds.delete(storyId);
     av.classList.remove("queued");
@@ -914,11 +938,6 @@ function togglePending(storyId, row, av, btn) {
 
 // ── Tout ajouter / Tout retirer ───────────────────────────────────────────────
 $addAllBtn.addEventListener("click", () => {
-  if (!importAudioSupported) {
-    showToast(APP_STORE_IMPORT_MESSAGE, "warn", 5000);
-    return;
-  }
-
   for (const af of audioFiles) pendingIds.add(af.storyId);
   renderFolderList();
   updateSyncButton();
@@ -995,15 +1014,6 @@ async function startSync() {
   const folderPath = firstAudio ? firstAudio.path.substring(0, firstAudio.path.lastIndexOf("/")) : "";
   const selectedFiles = selectedAudio.map(a => a.path);
   const totalFiles = selectedFiles.length;
-
-  if (isMacAppStoreChannel() && selectedFiles.length > 0) {
-    pendingIds.clear();
-    renderFolderList();
-    updateSyncButton();
-    log("warn", APP_STORE_IMPORT_MESSAGE);
-    showToast(APP_STORE_IMPORT_MESSAGE, "warn", 5000);
-    return;
-  }
 
   const toDelete = [...pendingDeletes];
 

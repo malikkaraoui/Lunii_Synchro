@@ -1,6 +1,6 @@
 {
   "name": "luniisync",
-  "version": "2.1.11",
+  "version": "2.1.12",
   "description": "LuniiSync V2 — Transfert audio vers Lunii",
   "scripts": {
     "dev":            "tauri dev",

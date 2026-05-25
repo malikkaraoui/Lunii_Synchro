@@ -7,7 +7,10 @@
     "resources": [],
     "macOS": {
       "minimumSystemVersion": "12.0",
-      "entitlements": "../lunii-app-store.entitlements"
+      "entitlements": "../lunii-app-store.entitlements",
+      "files": {
+        "../PrivacyInfo.xcprivacy": "PrivacyInfo.xcprivacy"
+      }
     }
   },
   "build": {

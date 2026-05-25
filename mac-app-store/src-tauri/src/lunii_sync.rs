@@ -23,6 +23,11 @@ pub struct StorageInfo {
 
 /// Retourne les infos d'espace disque via `df -k` (macOS/Linux).
 pub fn get_storage_info(mount: &str) -> Result<StorageInfo, String> {
+    #[cfg(feature = "mac-app-store")]
+    {
+        let _ = mount;
+        return Err("Espace disque non disponible dans cette variante.".to_string());
+    }
     #[cfg(unix)]
     {
         let out = std::process::Command::new("df")

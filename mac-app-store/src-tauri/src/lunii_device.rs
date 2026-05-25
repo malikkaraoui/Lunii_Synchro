@@ -194,35 +194,33 @@ impl LuniiDeviceProbe {
     }
 }
 
-/// Retourne un identifiant stable pour le volume monté (UUID macOS, device Linux).
+/// Retourne un identifiant stable pour le volume monté (UUID macOS hors sandbox, path sinon).
 pub fn get_volume_id(mount: &str) -> Option<String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", not(feature = "mac-app-store")))]
     {
-        let out = std::process::Command::new("diskutil")
+        if let Ok(out) = std::process::Command::new("diskutil")
             .args(["info", mount])
             .output()
-            .ok()?;
-        let text = String::from_utf8_lossy(&out.stdout);
-        for line in text.lines() {
-            if line.contains("Volume UUID") {
-                if let Some(id) = line.split(':').nth(1) {
-                    let id = id.trim().to_string();
-                    if !id.is_empty() && id != "none" { return Some(id); }
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            for line in text.lines() {
+                if line.contains("Volume UUID") {
+                    if let Some(id) = line.split(':').nth(1) {
+                        let id = id.trim().to_string();
+                        if !id.is_empty() && id != "none" { return Some(id); }
+                    }
+                }
+            }
+            for line in text.lines() {
+                if line.to_lowercase().contains("disk identifier") {
+                    if let Some(id) = line.split(':').nth(1) {
+                        return Some(format!("disk-{}", id.trim()));
+                    }
                 }
             }
         }
-        // Fallback: serial number from disk
-        for line in text.lines() {
-            if line.to_lowercase().contains("disk identifier") {
-                if let Some(id) = line.split(':').nth(1) {
-                    return Some(format!("disk-{}", id.trim()));
-                }
-            }
-        }
-        None
     }
-    #[cfg(not(target_os = "macos"))]
-    { Some(format!("vol-{}", mount.replace('/', "_"))) }
+    Some(format!("vol-{}", mount.replace('/', "_")))
 }
 
 fn dir_size_bytes(path: &Path) -> u64 {

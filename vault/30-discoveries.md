@@ -50,3 +50,24 @@
 ### 2026-05-22 · Version identifiée par APP_VERSION côté Rust
 - **Découverte** : La version affichée dans le splash et les réglages est lue depuis `APP_VERSION` (constante Rust) — plus de valeur codée en dur dans le HTML
 - **Source** : CHANGELOG.md [2.0.3]
+
+### 2026-05-25 · XXTEA Lunii : formule de rounds NON standard
+
+- **Découverte critique** : Lunii.QT utilise `rounds = int(1 + 52/(len/4))` et non la formule XXTEA standard `6 + 52/n`. Pour un buffer de 512 octets (n=128), rounds=1. Pour 64 octets (n=16), rounds=4. Sans cette formule exacte le crypto produit des données incompatibles avec la boîte.
+- **Constante générique** : `LUNII_GENERIC_KEY = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC0E3]` (hardcodée dans Lunii.QT, commune à tous les appareils V2)
+- **Source** : `o-daneel/Lunii.QT pkg/api/device_lunii.py` + `mac-app-store/src-tauri/src/lunii_crypto.rs`
+
+### 2026-05-25 · Dérivation device key V2 : swap bytes obligatoire
+
+- **Découverte** : La device key V2 n'est pas lue directement depuis `.md[0x100..0x200]`. Algorithme : XXTEA-decrypt 256 octets avec clé générique (rounds=1), puis swap : `device_key = dec[8..16] + dec[0..8]`. Sans ce swap la clé est incorrecte.
+- **Source** : `o-daneel/Lunii.QT __md1to5_parse` + `mac-app-store/src-tauri/src/lunii_crypto.rs:derive_v2_device_key`
+
+### 2026-05-25 · Structure fichiers Lunii V2 sur le volume
+
+- **Découverte** : `.content/<short_uuid>/` contient : `sf/000/<NORM>` (audio chiffré), `rf/000/<NORM>` (images chiffrées), `ri`/`si`/`li` (index chiffrés), `ni`/`nm` (non chiffrés), `bt` (authorization token = cipher(ri[:64], device_key)). Le `short_uuid` est les 8 premiers caractères de l'UUID histoire.
+- **Source** : `mac-app-store/src-tauri/src/lunii_import.rs:import_story`
+
+### 2026-05-25 · App Store : reqwest/open non-utilisables au runtime mais compilables
+
+- **Découverte** : Les crates `reqwest` et `open` peuvent rester dans Cargo.toml sans violer les règles App Store — l'important est que les chemins de code qui les appellent soient exclus via `#[cfg(not(feature = "mac-app-store"))]`. Apple inspecte le comportement runtime, pas les symboles compilés inactifs.
+- **Source** : `mac-app-store/NATIVE_IMPORT.md §Bloqueurs`

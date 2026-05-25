@@ -180,6 +180,16 @@ fn base64_encode(data: &[u8]) -> String {
 
 #[tauri::command]
 async fn eject_device(mount: String) -> Result<(), String> {
+    #[cfg(feature = "mac-app-store")]
+    {
+        let _ = mount;
+        return Err(
+            "Éjectez la boîte depuis le Finder (clic droit sur le volume → Éjecter).".to_string(),
+        );
+    }
+
+    #[cfg(not(feature = "mac-app-store"))]
+    {
     use tokio::process::Command;
     #[cfg(target_os = "macos")]
     {
@@ -208,6 +218,13 @@ async fn eject_device(mount: String) -> Result<(), String> {
     {
         Err("Éjection non supportée sur cette plateforme".to_string())
     }
+    }
+}
+
+/// Vérifie qu'un chemin est bien une boîte Lunii (fichier .md présent).
+#[tauri::command]
+fn validate_lunii_mount(path: String) -> bool {
+    std::path::Path::new(&path).join(".md").exists()
 }
 
 // ── Lancement du bridge Python ────────────────────────────────────────────────
@@ -695,6 +712,7 @@ fn main() {
             get_cover_base64,
             get_distribution_channel,
             eject_device,
+            validate_lunii_mount,
             start_sync,
             check_for_update,
             open_release_page,
