@@ -8,7 +8,7 @@
 
 ## État court
 
-- Projet : **Synchro Boîte à histoires** (repo : `malikkaraoui/Lunii_Synchro`)
+- Projet : **Synchro Boîte à histoires** (repo local actif de la synchro audio vers la boîte à histoires)
 - Phase : **Production + Mac App Store en préparation** (dernière release : v2.1.12)
 - Stack : **Tauri 2.0 (Rust) + Vanilla JS/HTML/CSS + Python sidecar (boite-bridge.py)**
 - Objectif courant : **finaliser la variante Mac App Store** (validation device physique V2 restante)
