@@ -396,8 +396,18 @@ const GITHUB_RELEASE_URL: &str =
 const GITHUB_RELEASES_PAGE: &str =
     "https://github.com/malikkaraoui/Synchro_boite_a_histoires/releases/latest";
 
+/// Compare deux versions semver sous forme de tuples (major, minor, patch).
+fn parse_semver(v: &str) -> Option<(u32, u32, u32)> {
+    let v = v.trim_start_matches('v');
+    let parts: Vec<&str> = v.split('.').collect();
+    if parts.len() < 3 { return None; }
+    Some((parts[0].parse().ok()?, parts[1].parse().ok()?, parts[2].parse().ok()?))
+}
+
 #[tauri::command]
 async fn check_for_update() -> Result<String, String> {
+    let current = env!("CARGO_PKG_VERSION");
+
     let client = reqwest::Client::builder()
         .user_agent("Synchro Boîte à histoires/2.0")
         .timeout(std::time::Duration::from_secs(8))
@@ -415,10 +425,19 @@ async fn check_for_update() -> Result<String, String> {
         .await
         .map_err(|e| format!("JSON invalide : {e}"))?;
 
-    json.get("tag_name")
+    let latest = json.get("tag_name")
         .and_then(|v| v.as_str())
         .map(|s| s.trim_start_matches('v').to_string())
-        .ok_or_else(|| "tag_name absent de la réponse".to_string())
+        .ok_or_else(|| "tag_name absent de la réponse".to_string())?;
+
+    let current_v = parse_semver(current).ok_or("Version courante non parseable")?;
+    let latest_v  = parse_semver(&latest).ok_or("Version GitHub non parseable")?;
+
+    if latest_v > current_v {
+        Ok(latest)
+    } else {
+        Err("already_up_to_date".to_string())
+    }
 }
 
 #[tauri::command]

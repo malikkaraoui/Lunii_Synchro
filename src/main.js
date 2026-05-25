@@ -92,25 +92,25 @@ async function runSplash() {
 
   try {
     const latest = await invoke("check_for_update");
-    if (latest && latest !== APP_VERSION) {
-      $label.textContent = `Nouvelle version disponible : v${latest} — cliquez pour installer`;
-      $label.style.color = "#f0a32a";
-      $label.style.cursor = "pointer";
-      $label.onclick = () => {
-        $label.textContent = "Téléchargement en cours…";
-        $label.style.cursor = "default";
-        $label.onclick = null;
-        invoke("download_and_install_update").catch(e => {
-          $label.textContent = `Erreur : ${e}`;
-          $label.style.color = "#e55";
-        });
-      };
-    } else {
+    $label.textContent = `Nouvelle version disponible : v${latest} — cliquez pour installer`;
+    $label.style.color = "#f0a32a";
+    $label.style.cursor = "pointer";
+    $label.onclick = () => {
+      $label.textContent = "Téléchargement en cours…";
+      $label.style.cursor = "default";
+      $label.onclick = null;
+      invoke("download_and_install_update").catch(e => {
+        $label.textContent = `Erreur : ${e}`;
+        $label.style.color = "#e55";
+      });
+    };
+  } catch (e) {
+    if (e === "already_up_to_date") {
       $label.textContent = "Application à jour ✓";
       $label.style.color = "#00957f";
+    } else {
+      $label.textContent = "Pas de connexion — vérification ignorée";
     }
-  } catch {
-    $label.textContent = "Pas de connexion — vérification ignorée";
   }
 
   clearInterval(tick);
@@ -212,23 +212,23 @@ $checkUpdateBtn.addEventListener("click", async () => {
   $updateResult.classList.remove("hidden");
   try {
     const latest = await invoke("check_for_update");
-    if (latest && latest !== APP_VERSION) {
-      $updateResult.classList.add("update-new");
-      $updateResult.textContent = `Nouvelle version disponible : v${latest} — cliquez pour installer`;
-      $updateResult.style.cursor = "pointer";
-      $updateResult.onclick = () => {
-        $updateResult.textContent = "Téléchargement en cours… (l'app va redémarrer)";
-        $updateResult.style.cursor = "default";
-        $updateResult.onclick = null;
-        invoke("download_and_install_update");
-      };
-    } else {
+    $updateResult.classList.add("update-new");
+    $updateResult.textContent = `Nouvelle version disponible : v${latest} — cliquez pour installer`;
+    $updateResult.style.cursor = "pointer";
+    $updateResult.onclick = () => {
+      $updateResult.textContent = "Téléchargement en cours… (l'app va redémarrer)";
+      $updateResult.style.cursor = "default";
+      $updateResult.onclick = null;
+      invoke("download_and_install_update");
+    };
+  } catch (e) {
+    if (e === "already_up_to_date") {
       $updateResult.classList.add("update-ok");
       $updateResult.textContent = "Application à jour ✓";
+    } else {
+      $updateResult.classList.add("update-err");
+      $updateResult.textContent = "Pas de connexion Internet";
     }
-  } catch (e) {
-    $updateResult.classList.add("update-err");
-    $updateResult.textContent = "Pas de connexion Internet";
   }
   $checkUpdateBtn.disabled = false;
 });
