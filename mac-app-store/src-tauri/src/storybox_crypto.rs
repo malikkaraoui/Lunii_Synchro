@@ -1,14 +1,14 @@
-//! Chiffrement Lunii — XXTEA avec la formule de rounds spécifique à Lunii.QT.
+//! Chiffrement boîte à histoires — XXTEA avec la formule de rounds spécifique à StoryBox.QT.
 //!
-//! Différence critique : Lunii.QT utilise `rounds = 1 + 52/n` (division entière),
+//! Différence critique : StoryBox.QT utilise `rounds = 1 + 52/n` (division entière),
 //! PAS la formule XXTEA standard `6 + 52/n`.
 //!
-//! Sources : o-daneel/Lunii.QT pkg/api/device_lunii.py + ifduyue/xxtea.
+//! Sources : o-daneel/StoryBox.QT pkg/api/device_storybox.py + ifduyue/xxtea.
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-/// Clé générique Lunii (hardcodée dans Lunii.QT, commune à tous les appareils V2).
-const LUNII_GENERIC_KEY: [u32; 4] = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC0E3];
+/// Clé générique boîte à histoires (hardcodée dans StoryBox.QT, commune à tous les appareils V2).
+const STORYBOX_GENERIC_KEY: [u32; 4] = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC0E3];
 
 const DELTA: u32 = 0x9e3779b9;
 
@@ -30,8 +30,8 @@ fn u32_to_bytes_le(words: &[u32]) -> Vec<u8> {
 
 // ── XXTEA ─────────────────────────────────────────────────────────────────────
 
-/// Calcule le nombre de rounds selon la formule Lunii.QT : `int(1 + 52 / (len/4))`.
-fn lunii_tea_rounds(buf_len: usize) -> usize {
+/// Calcule le nombre de rounds selon la formule StoryBox.QT : `int(1 + 52 / (len/4))`.
+fn storybox_tea_rounds(buf_len: usize) -> usize {
     let n = buf_len / 4;
     if n < 2 {
         return 1;
@@ -103,7 +103,7 @@ fn cipher_leading_bytes(data: &[u8], key: &[u32; 4], enc_len: usize) -> Vec<u8> 
     block[..actual].copy_from_slice(&data[..actual]);
 
     let mut words = bytes_to_u32_le(&block);
-    let rounds = lunii_tea_rounds(block.len());
+    let rounds = storybox_tea_rounds(block.len());
     xxtea_encrypt(&mut words, key, rounds);
 
     let enc_bytes = u32_to_bytes_le(&words);
@@ -115,9 +115,9 @@ fn cipher_leading_bytes(data: &[u8], key: &[u32; 4], enc_len: usize) -> Vec<u8> 
 // ── API publique ──────────────────────────────────────────────────────────────
 
 /// Chiffre les 512 premiers octets d'un fichier story (audio, image, ri, si, li)
-/// avec la clé générique Lunii.
+/// avec la clé générique boîte à histoires.
 pub fn cipher_story_data(data: &[u8]) -> Vec<u8> {
-    cipher_leading_bytes(data, &LUNII_GENERIC_KEY, 512)
+    cipher_leading_bytes(data, &STORYBOX_GENERIC_KEY, 512)
 }
 
 /// Génère le fichier `bt` (authorization token) pour un appareil V2.
@@ -129,11 +129,11 @@ pub fn make_bt_v2(ri_data: &[u8], device_key: &[u32; 4]) -> Vec<u8> {
     cipher_leading_bytes(&input, device_key, 64)
 }
 
-/// Dérive la device key d'un appareil Lunii V2 depuis le contenu binaire du fichier `.md`.
+/// Dérive la device key d'un appareil boîte à histoires V2 depuis le contenu binaire du fichier `.md`.
 ///
-/// Algorithme (Lunii.QT `__md1to5_parse`) :
+/// Algorithme (StoryBox.QT `__md1to5_parse`) :
 /// 1. Lire 256 octets à l'offset 0x100 (`raw_devkey`)
-/// 2. XXTEA-déchiffrer avec la clé générique, rounds = lunii_tea_rounds(256) = 1
+/// 2. XXTEA-déchiffrer avec la clé générique, rounds = storybox_tea_rounds(256) = 1
 /// 3. Swap : device_key = dec[8..16] + dec[0..8]
 pub fn derive_v2_device_key(md_data: &[u8]) -> Result<[u32; 4], String> {
     if md_data.len() < 0x200 {
@@ -144,8 +144,8 @@ pub fn derive_v2_device_key(md_data: &[u8]) -> Result<[u32; 4], String> {
     }
     let raw = &md_data[0x100..0x200]; // 256 octets
     let mut words = bytes_to_u32_le(raw);
-    let rounds = lunii_tea_rounds(raw.len()); // = 1
-    xxtea_decrypt(&mut words, &LUNII_GENERIC_KEY, rounds);
+    let rounds = storybox_tea_rounds(raw.len()); // = 1
+    xxtea_decrypt(&mut words, &STORYBOX_GENERIC_KEY, rounds);
     let dec = u32_to_bytes_le(&words);
 
     // Swap : [8..16] + [0..8]
@@ -157,7 +157,7 @@ pub fn derive_v2_device_key(md_data: &[u8]) -> Result<[u32; 4], String> {
     Ok([w[0], w[1], w[2], w[3]])
 }
 
-/// Retourne la version hardware Lunii depuis l'octet 0 du fichier `.md`.
+/// Retourne la version hardware boîte à histoires depuis l'octet 0 du fichier `.md`.
 /// - md_version < 6 → V2 (XXTEA)
 /// - md_version >= 6 → V3 (AES-128-CBC, non supporté dans cette variante)
 pub fn md_hw_version(md_data: &[u8]) -> u8 {
@@ -178,21 +178,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lunii_tea_rounds_matches_python_formula() {
+    fn storybox_tea_rounds_matches_python_formula() {
         // Python: int(1 + 52 / (len/4))  [division flottante puis trunc]
-        assert_eq!(lunii_tea_rounds(512), 1);  // n=128 → 1+52//128=1
-        assert_eq!(lunii_tea_rounds(256), 1);  // n=64  → 1+52//64=1
-        assert_eq!(lunii_tea_rounds(64),  4);  // n=16  → 1+52//16=4
-        assert_eq!(lunii_tea_rounds(32),  7);  // n=8   → 1+52//8=7
-        assert_eq!(lunii_tea_rounds(16),  14); // n=4   → 1+52//4=14
-        assert_eq!(lunii_tea_rounds(8),   27); // n=2   → 1+52//2=27
+        assert_eq!(storybox_tea_rounds(512), 1);  // n=128 → 1+52//128=1
+        assert_eq!(storybox_tea_rounds(256), 1);  // n=64  → 1+52//64=1
+        assert_eq!(storybox_tea_rounds(64),  4);  // n=16  → 1+52//16=4
+        assert_eq!(storybox_tea_rounds(32),  7);  // n=8   → 1+52//8=7
+        assert_eq!(storybox_tea_rounds(16),  14); // n=4   → 1+52//4=14
+        assert_eq!(storybox_tea_rounds(8),   27); // n=2   → 1+52//2=27
     }
 
     #[test]
     fn xxtea_encrypt_decrypt_roundtrip() {
         let key: [u32; 4] = [0xDEADBEEF, 0xCAFEBABE, 0x12345678, 0x9ABCDEF0];
         let original: Vec<u32> = vec![0x11223344, 0x55667788, 0x99AABBCC, 0xDDEEFF00];
-        let rounds = lunii_tea_rounds(original.len() * 4);
+        let rounds = storybox_tea_rounds(original.len() * 4);
 
         let mut encrypted = original.clone();
         xxtea_encrypt(&mut encrypted, &key, rounds);
@@ -214,8 +214,8 @@ mod tests {
 
     #[test]
     fn cipher_story_data_roundtrip_with_decrypt() {
-        let key = LUNII_GENERIC_KEY;
-        let original = b"Hello Lunii World! This is a test audio data padding to 512+ bytes"
+        let key = STORYBOX_GENERIC_KEY;
+        let original = b"Hello StoryBox World! This is a test audio data padding to 512+ bytes"
             .iter()
             .cycle()
             .take(600)
@@ -228,7 +228,7 @@ mod tests {
         block[..enc_len].copy_from_slice(&original[..enc_len]);
 
         let mut words_enc = bytes_to_u32_le(&block);
-        let rounds = lunii_tea_rounds(block.len());
+        let rounds = storybox_tea_rounds(block.len());
         xxtea_encrypt(&mut words_enc, &key, rounds);
 
         xxtea_decrypt(&mut words_enc, &key, rounds);
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn make_bt_v2_differs_from_input() {
         let ri_data = vec![0xABu8; 64];
-        let key = LUNII_GENERIC_KEY;
+        let key = STORYBOX_GENERIC_KEY;
         let bt = make_bt_v2(&ri_data, &key);
         assert_ne!(bt, ri_data);
     }

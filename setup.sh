@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup.sh — Installation de lunii-push sur macOS / Linux
+# setup.sh — Installation de boite-push sur macOS / Linux
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -55,9 +55,9 @@ echo "=== 2. Python dependencies ==="
 pip3 install PySide6 Pillow requests --quiet
 
 echo ""
-echo "=== 3. Lunii.QT ==="
-if [ ! -d "Lunii.QT" ]; then
-  git clone https://github.com/o-daneel/Lunii.QT.git
+echo "=== 3. StoryBox.QT ==="
+if [ ! -d "StoryBox.QT" ]; then
+  git clone https://github.com/o-daneel/StoryBox.QT.git
 else
   echo "   Déjà présent."
 fi
@@ -76,4 +76,4 @@ echo ""
 echo "✅ Installation terminée."
 echo ""
 echo "Usage :"
-echo "  python3 lunii-push.py /chemin/vers/dossier/audio"
+echo "  python3 boite-push.py /chemin/vers/dossier/audio"

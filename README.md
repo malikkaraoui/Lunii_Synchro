@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="src/logo.png" width="120" alt="LuniiSync Logo"/>
-  <h1>LuniiSync</h1>
+  <img src="src/logo.png" width="120" alt="Synchro Boîte à histoires Logo"/>
+  <h1>Synchro Boîte à histoires</h1>
   <p><strong>Transférez vos histoires audio sur  "Ma Fabrique à Histoires" — facilement, sans abonnement.</strong></p>
   <p><em>La conteuse mobile pour vos histoires et podcasts préférés... et bien plus !</em></p>
   <p>
@@ -16,13 +16,13 @@
 
 ## Présentation
 
-LuniiSync est une application de bureau macOS permettant de transférer des fichiers audio personnels (MP3, M4A, WAV, OGG, FLAC) vers une **Fabrique à Histoires Lunii**, sans passer par le logiciel officiel.
+Synchro Boîte à histoires est une application de bureau macOS permettant de transférer des fichiers audio personnels (MP3, M4A, WAV, OGG, FLAC) vers une **Fabrique à Histoires boîte à histoires**, sans passer par le logiciel officiel.
 
-L'application génère automatiquement un story-pack compatible Lunii à partir de vos fichiers audio, puis l'importe directement sur votre boîte.
+L'application génère automatiquement un story-pack compatible boîte à histoires à partir de vos fichiers audio, puis l'importe directement sur votre boîte.
 
 ## Fonctionnalités
 
-- **Détection automatique** de la Lunii branchée en USB
+- **Détection automatique** de la boîte à histoires branchée en USB
 - **Transfert ciblé** — sélectionnez uniquement les histoires à transférer
 - **Suppression** d'histoires directement depuis l'interface
 - **Réorganisation** de l’ordre des histoires sur la boîte avec `↑` / `↓`
@@ -31,9 +31,9 @@ L'application génère automatiquement un story-pack compatible Lunii à partir 
 - **Mode sombre / clair / automatique**
 - **Splash screen** avec vérification automatique des mises à jour au démarrage
 - **Informations firmware** (HW version, FW major.minor.subminor)
-- **Noms lisibles** pour les histoires importées (depuis sidecar `.lunii-studio.json`)
+- **Noms lisibles** pour les histoires importées (depuis sidecar `.la-forge-a-histoires.json`)
 - **Journal de synchronisation** intégré avec animation de progression en temps réel
-- **Réparation d'index** — bouton dédié pour reconstruire le fichier d'index Lunii (`.pi`) en cas de corruption
+- **Réparation d'index** — bouton dédié pour reconstruire le fichier d'index boîte à histoires (`.pi`) en cas de corruption
 
 ## Stack technique
 
@@ -41,15 +41,15 @@ L'application génère automatiquement un story-pack compatible Lunii à partir 
 |--------|-------------|------|
 | App desktop | **Tauri 2.0** + Rust | Fenêtre native, commandes système |
 | Détection device | **Rust** | Lecture UUID volume, inventaire `.content/` |
-| Dédup & sidecar | **Rust** | Hash SHA-256, `.lunii-studio.json` |
-| Génération story pack | **Python** (lunii-bridge.py) | SPG + Lunii.QT (crypto Lunii) |
+| Dédup & sidecar | **Rust** | Hash SHA-256, `.la-forge-a-histoires.json` |
+| Génération story pack | **Python** (boite-bridge.py) | SPG + StoryBox.QT (crypto boîte à histoires) |
 | Frontend | **Vanilla JS/HTML/CSS** | UI deux colonnes, sans framework |
 
 ## Prérequis
 
 - macOS 12+ (Apple Silicon ou Intel)
 - Python 3.10+ avec PySide6 installé
-- Connexion Internet au premier transfert (télécharge SPG et Lunii.QT automatiquement)
+- Connexion Internet au premier transfert (télécharge SPG et StoryBox.QT automatiquement)
 
 ```bash
 pip3 install PySide6 psutil py7zr xxtea pycryptodome
@@ -57,7 +57,7 @@ pip3 install PySide6 psutil py7zr xxtea pycryptodome
 
 ## Installation
 
-1. Téléchargez `LuniiSync.app` depuis la [dernière release](https://github.com/malikkaraoui/Lunii_Synchro/releases/latest)
+1. Téléchargez `Synchro Boîte à histoires.app` depuis la [dernière release](https://github.com/malikkaraoui/Synchro_boite_a_histoires/releases/latest)
 2. Copiez-la dans `/Applications` ou sur votre bureau
 3. Lancez — les dépendances Python sont téléchargées automatiquement au premier transfert
 
@@ -94,7 +94,7 @@ Actions → Build Windows release → Run workflow → saisir le tag (ex: v2.1.1
 
 ## Utilisation
 
-1. **Branchez** votre Lunii en USB — détectée automatiquement
+1. **Branchez** votre boîte à histoires en USB — détectée automatiquement
 2. **Nommez** votre boîte au premier branchement (max 15 caractères)
 3. **Sélectionnez** un dossier audio via "Parcourir…"
 4. **Cochez** les fichiers à transférer (ou "+ Tout ajouter")
@@ -104,7 +104,7 @@ Actions → Build Windows release → Run workflow → saisir le tag (ex: v2.1.1
 ## Structure du projet
 
 ```
-Lunii_Synchro/
+Synchro_boite_a_histoires/
 ├── src/                    # Frontend (HTML/CSS/JS)
 │   ├── index.html
 │   ├── main.js
@@ -113,35 +113,35 @@ Lunii_Synchro/
 ├── src-tauri/              # Backend Rust + config Tauri
 │   ├── src/
 │   │   ├── main.rs         # Point d'entrée + commandes Tauri
-│   │   ├── lunii_device.rs # Détection + inventaire Lunii
-│   │   ├── lunii_sync.rs   # Scan audio + hash + sidecar
+│   │   ├── storybox_device.rs # Détection + inventaire boîte à histoires
+│   │   ├── storybox_sync.rs   # Scan audio + hash + sidecar
 │   │   └── app_settings.rs # Persistance réglages
 │   ├── icons/              # Icônes app (logo fourni)
 │   └── tauri.conf.json
-├── lunii-bridge.py         # Sidecar Python (génération + import story pack)
+├── boite-bridge.py         # Sidecar Python (génération + import story pack)
 ├── TODO.md                 # Fonctionnalités à venir
 └── requirements.txt
 ```
 
 ## Mises à jour
 
-LuniiSync vérifie automatiquement les mises à jour au démarrage via les [GitHub Releases](https://github.com/malikkaraoui/Lunii_Synchro/releases). Le bouton **"Rechercher une mise à jour"** est également disponible dans les Réglages (⚙).
+Synchro Boîte à histoires vérifie automatiquement les mises à jour au démarrage via les [GitHub Releases](https://github.com/malikkaraoui/Synchro_boite_a_histoires/releases). Le bouton **"Rechercher une mise à jour"** est également disponible dans les Réglages (⚙).
 
 ## Crédits
 
 Développé par **Malik Karaoui**
 
 Basé sur les travaux open source de :
-- [Lunii.QT](https://github.com/o-daneel/Lunii.QT) — API Python Lunii
+- [StoryBox.QT](https://github.com/o-daneel/StoryBox.QT) — API Python boîte à histoires
 - [studio-pack-generator](https://github.com/jersou/studio-pack-generator) — Génération de story packs
 
 ---
 AVERTISSEMENT
 
-Ce logiciel repose sur mes propres recherches de rétro-ingénierie, limitées à la collecte des informations nécessaires à son interopérabilité avec le dispositif Lunii* Storyteller, et ne diffuse aucun contenu protégé.
+Ce logiciel repose sur mes propres recherches de rétro-ingénierie, limitées à la collecte des informations nécessaires à son interopérabilité avec le dispositif boîte à histoires* Storyteller, et ne diffuse aucun contenu protégé.
 
 Malgré tous nos efforts pour garantir la sécurité de ce logiciel, veuillez noter qu'il est fourni SANS GARANTIE et peut endommager votre appareil.
 
-* Lunii est une marque déposée de Lunii SAS. Je ne suis en aucun cas affilié à Lunii SAS.
+* boîte à histoires est une marque déposée de boîte à histoires SAS. Je ne suis en aucun cas affilié à boîte à histoires SAS.
 
-*Usage personnel uniquement. Non affilié à Lunii SAS.*
+*Usage personnel uniquement. Non affilié à boîte à histoires SAS.*

@@ -8,22 +8,22 @@
 ## Découvertes
 
 ### 2026-05-22 · Architecture des fichiers Rust
-- **Découverte** : 4 modules Rust dans `src-tauri/src/` : `main.rs` (point d'entrée + commandes Tauri), `lunii_device.rs` (détection + inventaire), `lunii_sync.rs` (scan audio + hash SHA-256 + sidecar), `app_settings.rs` (persistance réglages)
+- **Découverte** : 4 modules Rust dans `src-tauri/src/` : `main.rs` (point d'entrée + commandes Tauri), `storybox_device.rs` (détection + inventaire), `storybox_sync.rs` (scan audio + hash SHA-256 + sidecar), `app_settings.rs` (persistance réglages)
 - **Impact** : Chaque responsabilité est isolée — modifications ciblées possibles sans toucher les autres
 - **Source** : `ls src-tauri/src/`
 
 ### 2026-05-22 · Python sidecar : communication JSON ligne par ligne
-- **Découverte** : `lunii-bridge.py` communique avec le Rust via JSON ligne par ligne sur stdout (parsing en temps réel côté Rust pour le journal de sync)
+- **Découverte** : `boite-bridge.py` communique avec le Rust via JSON ligne par ligne sur stdout (parsing en temps réel côté Rust pour le journal de sync)
 - **Impact** : Le frontend reçoit les étapes de progression en streaming ; tout écart de format JSON casse le parsing
 - **Source** : README.md stack technique, CHANGELOG.md [2.0.0]
 
-### 2026-05-22 · Images des histoires chiffrées XXTEA sur la Lunii
+### 2026-05-22 · Images des histoires chiffrées XXTEA sur la boîte à histoires
 - **Découverte** : Les pochettes stockées sur la boîte sont chiffrées XXTEA — impossibles à lire directement
 - **Impact** : L'affichage des images doit passer par les fichiers locaux (tag APIC du MP3 ou fichier image voisin), pas par la boîte
 - **Source** : TODO.md
 
-### 2026-05-22 · Sidecar `.lunii-studio.json` pour les noms lisibles
-- **Découverte** : Un fichier sidecar `.lunii-studio.json` accompagne les packs importés pour stocker les métadonnées lisibles (nom de l'histoire)
+### 2026-05-22 · Sidecar `.la-forge-a-histoires.json` pour les noms lisibles
+- **Découverte** : Un fichier sidecar `.la-forge-a-histoires.json` accompagne les packs importés pour stocker les métadonnées lisibles (nom de l'histoire)
 - **Impact** : Sans ce sidecar, les histoires n'ont pas de nom affiché dans l'UI
 - **Source** : README.md fonctionnalités, README.md structure
 
@@ -33,7 +33,7 @@
 - **Source** : CHANGELOG.md [2.0.2]
 
 ### 2026-05-22 · Entitlements macOS : app-sandbox désactivé
-- **Découverte** : `app-sandbox` désactivé dans `lunii-app.entitlements` pour éviter les dialogues répétitifs d'accès au volume USB
+- **Découverte** : `app-sandbox` désactivé dans `boite-app.entitlements` pour éviter les dialogues répétitifs d'accès au volume USB
 - **Impact** : L'app a un accès étendu au système — nécessaire pour la détection USB mais réduit le sandboxing de sécurité
 - **Source** : CHANGELOG.md [2.0.1]
 
@@ -51,21 +51,21 @@
 - **Découverte** : La version affichée dans le splash et les réglages est lue depuis `APP_VERSION` (constante Rust) — plus de valeur codée en dur dans le HTML
 - **Source** : CHANGELOG.md [2.0.3]
 
-### 2026-05-25 · XXTEA Lunii : formule de rounds NON standard
+### 2026-05-25 · XXTEA boîte à histoires : formule de rounds NON standard
 
-- **Découverte critique** : Lunii.QT utilise `rounds = int(1 + 52/(len/4))` et non la formule XXTEA standard `6 + 52/n`. Pour un buffer de 512 octets (n=128), rounds=1. Pour 64 octets (n=16), rounds=4. Sans cette formule exacte le crypto produit des données incompatibles avec la boîte.
-- **Constante générique** : `LUNII_GENERIC_KEY = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC0E3]` (hardcodée dans Lunii.QT, commune à tous les appareils V2)
-- **Source** : `o-daneel/Lunii.QT pkg/api/device_lunii.py` + `mac-app-store/src-tauri/src/lunii_crypto.rs`
+- **Découverte critique** : StoryBox.QT utilise `rounds = int(1 + 52/(len/4))` et non la formule XXTEA standard `6 + 52/n`. Pour un buffer de 512 octets (n=128), rounds=1. Pour 64 octets (n=16), rounds=4. Sans cette formule exacte le crypto produit des données incompatibles avec la boîte.
+- **Constante générique** : `STORYBOX_GENERIC_KEY = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC0E3]` (hardcodée dans StoryBox.QT, commune à tous les appareils V2)
+- **Source** : `o-daneel/StoryBox.QT pkg/api/device_storybox.py` + `mac-app-store/src-tauri/src/storybox_crypto.rs`
 
 ### 2026-05-25 · Dérivation device key V2 : swap bytes obligatoire
 
 - **Découverte** : La device key V2 n'est pas lue directement depuis `.md[0x100..0x200]`. Algorithme : XXTEA-decrypt 256 octets avec clé générique (rounds=1), puis swap : `device_key = dec[8..16] + dec[0..8]`. Sans ce swap la clé est incorrecte.
-- **Source** : `o-daneel/Lunii.QT __md1to5_parse` + `mac-app-store/src-tauri/src/lunii_crypto.rs:derive_v2_device_key`
+- **Source** : `o-daneel/StoryBox.QT __md1to5_parse` + `mac-app-store/src-tauri/src/storybox_crypto.rs:derive_v2_device_key`
 
-### 2026-05-25 · Structure fichiers Lunii V2 sur le volume
+### 2026-05-25 · Structure fichiers boîte à histoires V2 sur le volume
 
 - **Découverte** : `.content/<short_uuid>/` contient : `sf/000/<NORM>` (audio chiffré), `rf/000/<NORM>` (images chiffrées), `ri`/`si`/`li` (index chiffrés), `ni`/`nm` (non chiffrés), `bt` (authorization token = cipher(ri[:64], device_key)). Le `short_uuid` est les 8 premiers caractères de l'UUID histoire.
-- **Source** : `mac-app-store/src-tauri/src/lunii_import.rs:import_story`
+- **Source** : `mac-app-store/src-tauri/src/storybox_import.rs:import_story`
 
 ### 2026-05-25 · App Store : reqwest/open non-utilisables au runtime mais compilables
 

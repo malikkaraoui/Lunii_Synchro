@@ -1,5 +1,5 @@
 //! Logique de synchronisation V2 : scan dossier audio, dédup SHA-256,
-//! gestion des sidecars `.lunii-studio.json`, suppression des histoires orphelines.
+//! gestion des sidecars `.la-forge-a-histoires.json`, suppression des histoires orphelines.
 
 use chrono::Utc;
 use serde::Serialize;
@@ -8,7 +8,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use crate::lunii_device::{InventoryStatus, LuniiInventoryResult};
+use crate::storybox_device::{InventoryStatus, StoryBoxInventoryResult};
 
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "m4a", "wav", "ogg", "flac"];
 
@@ -23,6 +23,11 @@ pub struct StorageInfo {
 
 /// Retourne les infos d'espace disque via `df -k` (macOS/Linux).
 pub fn get_storage_info(mount: &str) -> Result<StorageInfo, String> {
+    #[cfg(feature = "mac-app-store")]
+    {
+        let _ = mount;
+        return Err("Espace disque non disponible dans cette variante.".to_string());
+    }
     #[cfg(unix)]
     {
         let out = std::process::Command::new("df")
@@ -162,7 +167,7 @@ pub fn compute_file_hash(path: &Path) -> Result<String, String> {
 
 pub fn determine_needed_pushes(
     audio_files: &[AudioFile],
-    inventory: &LuniiInventoryResult,
+    inventory: &StoryBoxInventoryResult,
 ) -> SyncPlan {
     let device_mount = inventory.mount.clone();
     let device_total_stories = inventory.total_stories;
@@ -233,7 +238,7 @@ pub fn determine_needed_pushes(
 
 // ── Sidecar ───────────────────────────────────────────────────────────────────
 
-/// Écrit `.lunii-studio.json` dans le dossier story après un import réussi.
+/// Écrit `.la-forge-a-histoires.json` dans le dossier story après un import réussi.
 pub fn write_sidecar(
     mount: &str,
     short_uuid: &str,
@@ -249,11 +254,11 @@ pub fn write_sidecar(
         "story_id": story_id,
         "hash": hash,
         "pushed_at": Utc::now().to_rfc3339(),
-        "source": "lunii-studio"
+        "source": "la-forge-a-histoires"
     });
 
     fs::write(
-        story_dir.join(".lunii-studio.json"),
+        story_dir.join(".la-forge-a-histoires.json"),
         serde_json::to_string_pretty(&payload).unwrap(),
     )
     .map_err(|e| format!("Écriture sidecar échouée : {e}"))
@@ -289,7 +294,7 @@ pub fn find_newly_pushed_uuid(mount: &str, story_id: &str) -> Option<PathBuf> {
             if !path.is_dir() {
                 continue;
             }
-            let sidecar_path = path.join(".lunii-studio.json");
+            let sidecar_path = path.join(".la-forge-a-histoires.json");
             if let Ok(text) = fs::read_to_string(&sidecar_path) {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
                     if val.get("story_id").and_then(|v| v.as_str()) == Some(story_id) {
@@ -339,7 +344,7 @@ mod tests {
 
     #[test]
     fn scan_filters_non_audio_files() {
-        let tmp = TempDir::new("lunii-sync-scan");
+        let tmp = TempDir::new("storybox-sync-scan");
         fs::write(tmp.path.join("story.mp3"), b"fake mp3").unwrap();
         fs::write(tmp.path.join("image.jpg"), b"fake jpg").unwrap();
         fs::write(tmp.path.join("README.txt"), b"readme").unwrap();
@@ -353,7 +358,7 @@ mod tests {
 
     #[test]
     fn scan_detects_all_audio_extensions() {
-        let tmp = TempDir::new("lunii-sync-ext");
+        let tmp = TempDir::new("storybox-sync-ext");
         for ext in ["mp3", "m4a", "wav", "ogg", "flac"] {
             fs::write(tmp.path.join(format!("file.{ext}")), b"data").unwrap();
         }
@@ -365,7 +370,7 @@ mod tests {
 
     #[test]
     fn compute_hash_is_deterministic() {
-        let tmp = TempDir::new("lunii-sync-hash");
+        let tmp = TempDir::new("storybox-sync-hash");
         let path = tmp.path.join("test.mp3");
         fs::write(&path, b"hello world").unwrap();
 
@@ -377,25 +382,25 @@ mod tests {
 
     #[test]
     fn write_sidecar_creates_json_file() {
-        let tmp = TempDir::new("lunii-sidecar-write");
+        let tmp = TempDir::new("storybox-sidecar-write");
         let content = tmp.path.join(".content").join("ABCD1234");
         fs::create_dir_all(&content).unwrap();
         let mount = tmp.path.to_string_lossy().into_owned();
 
         write_sidecar(&mount, "ABCD1234", "mon-histoire", "sha256:abc123").unwrap();
 
-        let sidecar_path = content.join(".lunii-studio.json");
+        let sidecar_path = content.join(".la-forge-a-histoires.json");
         assert!(sidecar_path.exists());
         let text = fs::read_to_string(&sidecar_path).unwrap();
         let val: serde_json::Value = serde_json::from_str(&text).unwrap();
         assert_eq!(val["story_id"], "mon-histoire");
         assert_eq!(val["hash"], "sha256:abc123");
-        assert_eq!(val["source"], "lunii-studio");
+        assert_eq!(val["source"], "la-forge-a-histoires");
     }
 
     #[test]
     fn remove_orphan_story_deletes_dir() {
-        let tmp = TempDir::new("lunii-remove-orphan");
+        let tmp = TempDir::new("storybox-remove-orphan");
         let content = tmp.path.join(".content").join("DEADBEEF");
         fs::create_dir_all(&content).unwrap();
         let mount = tmp.path.to_string_lossy().into_owned();

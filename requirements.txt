@@ -1,7 +1,7 @@
-# Dépendances Python pour lunii-bridge.py (sidecar de génération stories)
+# Dépendances Python pour boite-bridge.py (sidecar de génération stories)
 # L'interface graphique est désormais assurée par Tauri (Rust) — PySide6 supprimé.
 
-# Requis par Lunii.QT (device API + crypto)
+# Requis par StoryBox.QT (device API + crypto)
 PySide6-Essentials
 xxtea
 pycryptodome
@@ -12,6 +12,6 @@ Pillow
 mutagen
 ffmpeg-python
 
-# Utilitaires Lunii.QT
+# Utilitaires StoryBox.QT
 unidecode
 py7zr

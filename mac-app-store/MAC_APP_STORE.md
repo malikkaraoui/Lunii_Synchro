@@ -1,11 +1,11 @@
 # Objectif
 
-Préparer une variante `Mac App Store` de `LuniiSync` sans casser la distribution directe actuelle.
+Préparer une variante `Mac App Store` de `Synchro Boîte à histoires` sans casser la distribution directe actuelle.
 
 ## Ce qui a été préparé
 
 - une config Tauri dédiée : `src-tauri/tauri.appstore.conf.json`
-- un jeu d’entitlements sandbox dédié : `lunii-app-store.entitlements`
+- un jeu d’entitlements sandbox dédié : `boite-app-store.entitlements`
 - une feature Cargo dédiée : `mac-app-store`
 - la désactivation de l’auto-update GitHub pour cette variante
 - un script de build dédié : `build-mac-app-store.sh`
@@ -39,25 +39,25 @@ Avec la variante `mac-app-store` :
 
 ### 1. Remplacement natif du bridge encore manquant
 
-Le build App Store ne lance plus `lunii-bridge.py` ni de Python externe.
+Le build App Store ne lance plus `boite-bridge.py` ni de Python externe.
 
 En revanche, pour retrouver la fonction d’import audio dans une version publiable, il faut encore remplacer le bridge par une implémentation native/signée conforme App Store.
 
-Fichier concerné côté chantier : `lunii-bridge.py`
+Fichier concerné côté chantier : `boite-bridge.py`
 
 ### 2. Téléchargement de code/ressources au runtime
 
 Le bridge Python historique :
 
-- clone `Lunii.QT` depuis GitHub
+- clone `StoryBox.QT` depuis GitHub
 - télécharge `studio-pack-generator`
-- écrit tout cela dans `~/.luniisync`
+- écrit tout cela dans `~/.synchro_boite_a_histoires`
 
 Le build App Store n’emprunte plus ce chemin à l’exécution, mais ce bootstrap doit toujours disparaître du chantier avant un vrai remplacement fonctionnel.
 
 Ça entre en collision avec les règles App Store sur les apps autoportées, sandboxées, et qui ne doivent pas télécharger/installer du code ou des composants modifiant la fonctionnalité après review.
 
-### 3. Sandbox et accès à la Lunii
+### 3. Sandbox et accès à la boîte à histoires
 
 La variante App Store active :
 
@@ -68,7 +68,7 @@ La variante App Store active :
 
 Mais le point critique reste à valider :
 
-- l’app détecte et manipule la Lunii montée en USB comme volume monté automatiquement
+- l’app détecte et manipule la boîte à histoires montée en USB comme volume monté automatiquement
 - en sandbox App Store, il faudra peut-être passer par une sélection utilisateur explicite du volume, ou une autre stratégie compatible sandbox
 
 ### 4. Soumission finale
@@ -82,31 +82,31 @@ La soumission réelle Mac App Store devra se faire via Xcode / App Store Connect
 
 ## Recommandation pragmatique
 
-Pour rendre `LuniiSync` réellement publiable sur le Mac App Store, la prochaine étape sérieuse est :
+Pour rendre `Synchro Boîte à histoires` réellement publiable sur le Mac App Store, la prochaine étape sérieuse est :
 
 1. supprimer la dépendance au Python externe
 2. supprimer le bootstrap réseau au runtime
 3. intégrer les composants nécessaires dans le bundle signé, ou réécrire le bridge en Rust / sidecar natif signé
-4. valider l’accès à la Lunii en mode sandbox
+4. valider l’accès à la boîte à histoires en mode sandbox
 
 ## Conclusion franche
 
 La base `Mac App Store` est maintenant préparée côté build/config/update.
 
-En revanche, **la soumission App Store n’est pas encore viable telle quelle** tant que le remplaçant natif du bridge n’existe pas et que la stratégie sandbox Lunii n’est pas validée.
+En revanche, **la soumission App Store n’est pas encore viable telle quelle** tant que le remplaçant natif du bridge n’existe pas et que la stratégie sandbox boîte à histoires n’est pas validée.
 
 ## Avancement du pipeline natif restant
 
 Déjà porté en Rust dans `mac-app-store/src-tauri/src/` :
 
-- `lunii_device.rs` : détection, inventaire, ordre, réparation d’index
-- `lunii_sync.rs` : scan audio, hashes, sidecars, suppressions
+- `storybox_device.rs` : détection, inventaire, ordre, réparation d’index
+- `storybox_sync.rs` : scan audio, hashes, sidecars, suppressions
 - `story_pack.rs` : post-traitement du ZIP STUdio
 - `studio_story.rs` : parsing de `story.json` + génération `ri` / `si` / `li` / `ni`
 
 Reste à porter pour un import audio App Store complet :
 
-1. mapping final des fichiers STUdio vers les chemins Lunii (`rf/000/*`, `sf/000/*`, `bt`, `li`, `si`, `ni`, `ri`, `nm`)
+1. mapping final des fichiers STUdio vers les chemins boîte à histoires (`rf/000/*`, `sf/000/*`, `bt`, `li`, `si`, `ni`, `ri`, `nm`)
 2. chiffrement / renommage natif équivalent à `__get_ciphered_name()` et `__get_ciphered_data()`
 3. écriture complète dans `.content/<short_uuid>/`
 4. mise à jour d’inventaire + sidecar + gestion d’échec/rollback pendant import

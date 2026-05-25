@@ -1,4 +1,4 @@
-//! Persistance des réglages LuniiSync : dossier audio mémorisé, noms des boîtes.
+//! Persistance des réglages Synchro Boîte à histoires : dossier audio mémorisé, noms des boîtes.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

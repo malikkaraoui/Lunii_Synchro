@@ -229,7 +229,7 @@ impl StudioStory {
             }
 
             if current_node.len() > NODE_SIZE {
-                return Err("story.json invalide : node trop grand pour le format Lunii".to_string());
+                return Err("story.json invalide : node trop grand pour le format boîte à histoires".to_string());
             }
 
             ni_buffer.extend_from_slice(&current_node);

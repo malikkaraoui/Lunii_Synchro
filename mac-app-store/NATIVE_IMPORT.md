@@ -7,10 +7,10 @@
 
 ## Contexte
 
-Le bridge Python `lunii-bridge.py` effectue deux opérations interdépendantes non conformes App Store :
+Le bridge Python `boite-bridge.py` effectue deux opérations interdépendantes non conformes App Store :
 
 1. **Génération du pack** via `studio-pack-generator` (binaire téléchargé au runtime depuis GitHub)
-2. **Import Lunii** via `Lunii.QT` (cloné depuis GitHub, requiert Python + PySide6)
+2. **Import boîte à histoires** via `StoryBox.QT` (cloné depuis GitHub, requiert Python + PySide6)
 
 Ces deux dépendances réseau/runtime sont **interdites** par les règles App Store (§2.5.2 — code téléchargé dynamiquement).
 
@@ -18,24 +18,24 @@ Ces deux dépendances réseau/runtime sont **interdites** par les règles App St
 
 ## Ce qui a été implémenté
 
-### `lunii_crypto.rs` — Chiffrement XXTEA natif
+### `storybox_crypto.rs` — Chiffrement XXTEA natif
 
-Source de référence : `o-daneel/Lunii.QT` `pkg/api/device_lunii.py` + `ifduyue/xxtea`
+Source de référence : `o-daneel/StoryBox.QT` `pkg/api/device_storybox.py` + `ifduyue/xxtea`
 
-**Point critique** : Lunii.QT utilise `rounds = int(1 + 52 / (len/4))`, PAS la formule XXTEA standard `6 + 52/n`.
+**Point critique** : StoryBox.QT utilise `rounds = int(1 + 52 / (len/4))`, PAS la formule XXTEA standard `6 + 52/n`.
 
 | Fonction | Description |
 |----------|-------------|
 | `xxtea_encrypt(v, key, rounds)` | XXTEA encrypt in-place sur `[u32]` |
 | `xxtea_decrypt(v, key, rounds)` | XXTEA decrypt in-place |
-| `cipher_story_data(data)` | Chiffre les 512 premiers octets avec la clé générique Lunii |
+| `cipher_story_data(data)` | Chiffre les 512 premiers octets avec la clé générique boîte à histoires |
 | `make_bt_v2(ri_data, device_key)` | Génère le fichier `bt` (authorization token) |
 | `derive_v2_device_key(md_data)` | Dérive la device key depuis `.md[0x100..0x200]` |
 | `md_hw_version(md_data)` | Détecte V2 (XXTEA) vs V3 (AES) |
 
-**Constante clé générique** (hardcodée dans Lunii.QT) :
+**Constante clé générique** (hardcodée dans StoryBox.QT) :
 ```rust
-const LUNII_GENERIC_KEY: [u32; 4] = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC0E3];
+const STORYBOX_GENERIC_KEY: [u32; 4] = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC0E3];
 ```
 
 **Dérivation device key V2** :
@@ -43,7 +43,7 @@ const LUNII_GENERIC_KEY: [u32; 4] = [0x91BD7A0A, 0xA75440A9, 0xBBD49D6C, 0xE0DCC
 2. XXTEA-déchiffrer avec la clé générique (rounds = 1)
 3. Swap : `device_key = dec[8..16] + dec[0..8]`
 
-### `lunii_import.rs` — Pipeline d'import complet
+### `storybox_import.rs` — Pipeline d'import complet
 
 #### `generate_simple_pack(audio_path)` — Remplace SPG
 
@@ -90,9 +90,9 @@ Les événements `sync:line` sont JSON-compatibles avec le frontend existant (m�
 
 | Fichier | Changement |
 |---------|-----------|
-| `src/lunii_crypto.rs` | **Nouveau** — XXTEA + key derivation (13 tests) |
-| `src/lunii_import.rs` | **Nouveau** — generate_simple_pack + import_story (8 tests) |
-| `src/main.rs` | Ajout `mod lunii_crypto`, `mod lunii_import`, `start_sync_native` |
+| `src/storybox_crypto.rs` | **Nouveau** — XXTEA + key derivation (13 tests) |
+| `src/storybox_import.rs` | **Nouveau** — generate_simple_pack + import_story (8 tests) |
+| `src/main.rs` | Ajout `mod storybox_crypto`, `mod storybox_import`, `start_sync_native` |
 | `Cargo.toml` | v2.1.12, `uuid v4` feature, `tempfile` dev-dep |
 
 ---
@@ -103,7 +103,7 @@ Les événements `sync:line` sont JSON-compatibles avec le frontend existant (m�
 test result: ok. 45 passed; 0 failed; 0 ignored
 ```
 
-Couverture : crypto (9), device (16), import (5), sync (5), story_pack (3), studio_story (3), lunii_import (4).
+Couverture : crypto (9), device (16), import (5), sync (5), story_pack (3), studio_story (3), storybox_import (4).
 
 ---
 
@@ -111,18 +111,18 @@ Couverture : crypto (9), device (16), import (5), sync (5), story_pack (3), stud
 
 ### 1. Validation sur device physique (OBLIGATOIRE)
 
-Le crypto XXTEA doit être validé contre une vraie Lunii V2 branchée en USB.  
+Le crypto XXTEA doit être validé contre une vraie boîte à histoires V2 branchée en USB.  
 **Test à faire** :
 ```bash
 cargo tauri build --features mac-app-store
-# brancher Lunii V2
+# brancher boîte à histoires V2
 # importer un MP3 de test depuis l'app
 # vérifier que l'histoire apparaît et est lisible sur la boîte
 ```
 
 ### 2. V3 non supporté
 
-Les Lunii V3 (firmware récent, `.md[0]` ≥ 6) utilisent AES-128-CBC avec une `story_key` dérivée du fichier `.md` ou d'un fichier `.keys` externe. L'app retourne une erreur explicite et dirige vers LuniiSync direct.
+Les boîte à histoires V3 (firmware récent, `.md[0]` ≥ 6) utilisent AES-128-CBC avec une `story_key` dérivée du fichier `.md` ou d'un fichier `.keys` externe. L'app retourne une erreur explicite et dirige vers Synchro Boîte à histoires direct.
 
 **Implémentation V3 :**
 - Lire `story_key = reverse_bytes(md[0x40..0x50])` et `story_iv = reverse_bytes(md[0x50..0x60])` (md_version 7)
@@ -161,14 +161,14 @@ inject_placeholder_cover_if_missing()   ← story_pack.rs (existant)
 patch_direct_play_zip()                 ← story_pack.rs (existant)
     │
     ▼
-import_story()                  ← lunii_import.rs (nouveau)
-    ├── derive_v2_device_key()  ← lunii_crypto.rs (nouveau)
+import_story()                  ← storybox_import.rs (nouveau)
+    ├── derive_v2_device_key()  ← storybox_crypto.rs (nouveau)
     ├── cipher_story_data()     ← XXTEA natif
     ├── make_bt_v2()            ← XXTEA natif
-    └── repair_pack_index_native() ← lunii_device.rs (existant)
+    └── repair_pack_index_native() ← storybox_device.rs (existant)
     │
     ▼
-Lunii V2 prête à lire l'histoire
+boîte à histoires V2 prête à lire l'histoire
 ```
 
 Zéro Python. Zéro téléchargement réseau au runtime. Conforme App Store.

@@ -1,5 +1,5 @@
-//! Détection et inventaire natif d'une boîte Lunii montée en USB.
-//! Porté depuis lunii-studio/tauri/src-tauri/src/lunii_device.rs
+//! Détection et inventaire natif d'une boîte boîte à histoires montée en USB.
+//! Porté depuis la-forge-a-histoires/tauri/src-tauri/src/storybox_device.rs
 //! + ajout du fallback détection par nom de volume.
 
 use serde::Serialize;
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct LuniiDeviceProbe {
+pub struct StoryBoxDeviceProbe {
     pub connected: bool,
     pub mount: Option<String>,
     pub device_id: Option<String>,
@@ -19,7 +19,7 @@ pub struct LuniiDeviceProbe {
     pub detection_method: Option<String>,
 }
 
-/// Métadonnées du sidecar `.lunii-studio.json` écrit par Studio au push.
+/// Métadonnées du sidecar `.la-forge-a-histoires.json` écrit par Studio au push.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SidecarData {
@@ -32,9 +32,9 @@ pub struct SidecarData {
 /// Une story trouvée dans `.content/<short_uuid>/`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LuniiStoryEntry {
+pub struct StoryBoxStoryEntry {
     pub short_uuid: String,
-    /// Présent uniquement si `.lunii-studio.json` valide existe.
+    /// Présent uniquement si `.la-forge-a-histoires.json` valide existe.
     pub sidecar: Option<SidecarData>,
     /// Titre lisible : depuis le sidecar, story.json ou titre.txt.
     pub title: Option<String>,
@@ -44,17 +44,17 @@ pub struct LuniiStoryEntry {
     pub size_bytes: u64,
 }
 
-/// Inventaire complet d'un device Lunii monté.
+/// Inventaire complet d'un device boîte à histoires monté.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LuniiInventory {
+pub struct StoryBoxInventory {
     pub mount: String,
-    pub stories: Vec<LuniiStoryEntry>,
+    pub stories: Vec<StoryBoxStoryEntry>,
     pub total_stories: usize,
     pub managed_stories: usize,
 }
 
-/// Discriminant explicite du résultat `get_lunii_inventory`.
+/// Discriminant explicite du résultat `get_storybox_inventory`.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum InventoryStatus {
@@ -64,13 +64,13 @@ pub enum InventoryStatus {
     Ok,
 }
 
-/// Résultat toujours retourné de `get_lunii_inventory` — jamais None.
+/// Résultat toujours retourné de `get_storybox_inventory` — jamais None.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LuniiInventoryResult {
+pub struct StoryBoxInventoryResult {
     pub status: InventoryStatus,
     pub mount: Option<String>,
-    pub stories: Vec<LuniiStoryEntry>,
+    pub stories: Vec<StoryBoxStoryEntry>,
     pub total_stories: usize,
     pub managed_stories: usize,
     pub error: Option<String>,
@@ -79,7 +79,7 @@ pub struct LuniiInventoryResult {
 /// Informations matérielles et firmware lues depuis `.md`.
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct LuniiDeviceInfo {
+pub struct StoryBoxDeviceInfo {
     pub hw_version: u8,
     pub fw_major: u8,
     pub fw_minor: u8,
@@ -111,7 +111,7 @@ pub struct StoryCompareResult {
 pub fn compare_story(
     story_id: &str,
     local_hash: Option<&str>,
-    stories: &[LuniiStoryEntry],
+    stories: &[StoryBoxStoryEntry],
 ) -> StoryCompareResult {
     let found = stories.iter().find(|s| {
         s.sidecar
@@ -148,14 +148,14 @@ pub fn check_story_on_device(
     story_id: String,
     local_hash: Option<String>,
 ) -> Option<StoryCompareResult> {
-    let result = get_lunii_inventory();
+    let result = get_storybox_inventory();
     if result.status != InventoryStatus::Ok {
         return None;
     }
     Some(compare_story(&story_id, local_hash.as_deref(), &result.stories))
 }
 
-impl LuniiDeviceProbe {
+impl StoryBoxDeviceProbe {
     fn disconnected() -> Self {
         Self {
             connected: false,
@@ -391,25 +391,25 @@ fn sorted_child_dirs(root: &Path) -> Vec<PathBuf> {
     dirs
 }
 
-fn probe_mount_candidate(path: &Path) -> Option<LuniiDeviceProbe> {
-    // Méthode 1 : fichier marqueur `.md` à la racine (Lunii officiel)
+fn probe_mount_candidate(path: &Path) -> Option<StoryBoxDeviceProbe> {
+    // Méthode 1 : fichier marqueur `.md` à la racine (boîte à histoires officiel)
     if path.join(".md").exists() {
-        return Some(LuniiDeviceProbe::connected(path.to_path_buf(), "marker", true));
+        return Some(StoryBoxDeviceProbe::connected(path.to_path_buf(), "marker", true));
     }
 
-    // Méthode 2 : nom de volume contient "LUNII" (fallback macOS/Windows)
+    // Méthode 2 : nom de volume contient "STORYBOX" (fallback macOS/Windows)
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().to_uppercase())
         .unwrap_or_default();
-    if name.contains("LUNII") {
-        return Some(LuniiDeviceProbe::connected(path.to_path_buf(), "volume-name", false));
+    if name.contains("STORYBOX") {
+        return Some(StoryBoxDeviceProbe::connected(path.to_path_buf(), "volume-name", false));
     }
 
     None
 }
 
-fn probe_root(root: &Path, nested_levels: usize) -> Option<LuniiDeviceProbe> {
+fn probe_root(root: &Path, nested_levels: usize) -> Option<StoryBoxDeviceProbe> {
     for child in sorted_child_dirs(root) {
         if let Some(probe) = probe_mount_candidate(&child) {
             return Some(probe);
@@ -426,12 +426,12 @@ fn probe_root(root: &Path, nested_levels: usize) -> Option<LuniiDeviceProbe> {
 }
 
 #[cfg(target_os = "macos")]
-fn probe_platform() -> LuniiDeviceProbe {
-    probe_root(Path::new("/Volumes"), 0).unwrap_or_else(LuniiDeviceProbe::disconnected)
+fn probe_platform() -> StoryBoxDeviceProbe {
+    probe_root(Path::new("/Volumes"), 0).unwrap_or_else(StoryBoxDeviceProbe::disconnected)
 }
 
 #[cfg(target_os = "linux")]
-fn probe_platform() -> LuniiDeviceProbe {
+fn probe_platform() -> StoryBoxDeviceProbe {
     for (root, nested) in [
         (Path::new("/run/media"), 1usize),
         (Path::new("/media"), 1usize),
@@ -442,11 +442,11 @@ fn probe_platform() -> LuniiDeviceProbe {
             return probe;
         }
     }
-    LuniiDeviceProbe::disconnected()
+    StoryBoxDeviceProbe::disconnected()
 }
 
 #[cfg(target_os = "windows")]
-fn probe_platform() -> LuniiDeviceProbe {
+fn probe_platform() -> StoryBoxDeviceProbe {
     for letter in b'A'..=b'Z' {
         let mount = PathBuf::from(format!("{}:\\", letter as char));
         if !mount.exists() {
@@ -456,25 +456,25 @@ fn probe_platform() -> LuniiDeviceProbe {
             return probe;
         }
     }
-    LuniiDeviceProbe::disconnected()
+    StoryBoxDeviceProbe::disconnected()
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-fn probe_platform() -> LuniiDeviceProbe {
-    LuniiDeviceProbe::disconnected()
+fn probe_platform() -> StoryBoxDeviceProbe {
+    StoryBoxDeviceProbe::disconnected()
 }
 
-pub fn probe_lunii_device() -> LuniiDeviceProbe {
+pub fn probe_storybox_device() -> StoryBoxDeviceProbe {
     probe_platform()
 }
 
-/// Parse `.lunii-studio.json` depuis un dossier story.
-/// Accepte les sidecars écrits par LuniiSync ("luniisync") et lunii-studio ("lunii-studio").
+/// Parse `.la-forge-a-histoires.json` depuis un dossier story.
+/// Accepte les sidecars écrits par Synchro Boîte à histoires ("synchro_boite_a_histoires") et la-forge-a-histoires ("la-forge-a-histoires").
 fn read_sidecar(story_dir: &Path) -> Option<SidecarData> {
-    let text = fs::read_to_string(story_dir.join(".lunii-studio.json")).ok()?;
+    let text = fs::read_to_string(story_dir.join(".la-forge-a-histoires.json")).ok()?;
     let val: serde_json::Value = serde_json::from_str(&text).ok()?;
     let source = val.get("source").and_then(|v| v.as_str()).unwrap_or("");
-    if source != "lunii-studio" && source != "luniisync" {
+    if source != "la-forge-a-histoires" && source != "synchro_boite_a_histoires" {
         return None;
     }
     // Accepte camelCase ("storyId") et snake_case ("story_id")
@@ -498,15 +498,15 @@ fn read_sidecar(story_dir: &Path) -> Option<SidecarData> {
 
 /// Détecte si un fichier est une image lisible via ses magic bytes.
 /// Retourne Some("png"|"jpg"|"bmp") ou None si pas reconnu.
-/// Lit les infos matérielles/firmware depuis le fichier `.md` d'une Lunii.
-pub fn read_device_info(mount: &str) -> LuniiDeviceInfo {
+/// Lit les infos matérielles/firmware depuis le fichier `.md` d'une boîte à histoires.
+pub fn read_device_info(mount: &str) -> StoryBoxDeviceInfo {
     let path = Path::new(mount).join(".md");
     let data = match fs::read(&path) {
         Ok(d) => d,
-        Err(_) => return LuniiDeviceInfo::default(),
+        Err(_) => return StoryBoxDeviceInfo::default(),
     };
     if data.len() < 32 {
-        return LuniiDeviceInfo::default();
+        return StoryBoxDeviceInfo::default();
     }
     // md_version = premier octet (little-endian 2 bytes, on prend le 1er)
     let md_version = data[0];
@@ -539,7 +539,7 @@ pub fn read_device_info(mount: &str) -> LuniiDeviceInfo {
             .collect::<String>()
     };
 
-    LuniiDeviceInfo { hw_version, fw_major, fw_minor, fw_subminor, serial }
+    StoryBoxDeviceInfo { hw_version, fw_major, fw_minor, fw_subminor, serial }
 }
 
 fn detect_image_format(path: &Path) -> Option<&'static str> {
@@ -554,9 +554,9 @@ fn detect_image_format(path: &Path) -> Option<&'static str> {
 }
 
 /// Cherche une image de couverture dans le dossier d'une story.
-/// Priorité : li/ri (Lunii natif), puis PNG/JPG/BMP dans assets/ et racine.
+/// Priorité : li/ri (boîte à histoires natif), puis PNG/JPG/BMP dans assets/ et racine.
 fn find_cover_image(story_dir: &Path) -> Option<String> {
-    // 1. Fichiers Lunii natifs sans extension (li = list image, ri = root image)
+    // 1. Fichiers boîte à histoires natifs sans extension (li = list image, ri = root image)
     for name in &["li", "ri"] {
         let p = story_dir.join(name);
         if p.is_file() && detect_image_format(&p).is_some() {
@@ -627,7 +627,7 @@ fn strip_hash_suffix(s: &str) -> &str {
     s
 }
 
-/// Retourne true si la chaîne ressemble à un UUID Lunii (hex + tirets, pas un titre lisible).
+/// Retourne true si la chaîne ressemble à un UUID boîte à histoires (hex + tirets, pas un titre lisible).
 fn looks_like_uuid(s: &str) -> bool {
     let stripped = s.replace('-', "");
     stripped.len() >= 16 && stripped.chars().all(|c| c.is_ascii_hexdigit())
@@ -635,9 +635,9 @@ fn looks_like_uuid(s: &str) -> bool {
 
 /// Tente de lire un titre lisible depuis le dossier d'une story.
 /// Cherche (dans l'ordre) : sidecar storyId, story.json/title.json, titre.txt.
-/// Filtre les UUID Lunii officiels qui ne sont pas des titres humains.
+/// Filtre les UUID boîte à histoires officiels qui ne sont pas des titres humains.
 fn read_story_title(story_dir: &Path, sidecar: &Option<SidecarData>) -> Option<String> {
-    // 1. Depuis le sidecar LuniiSync (priorité absolue)
+    // 1. Depuis le sidecar Synchro Boîte à histoires (priorité absolue)
     if let Some(sc) = sidecar {
         if !sc.story_id.is_empty() && !looks_like_uuid(&sc.story_id) {
             let name = strip_hash_suffix(&sc.story_id).replace('_', " ");
@@ -669,7 +669,7 @@ fn read_story_title(story_dir: &Path, sidecar: &Option<SidecarData>) -> Option<S
 }
 
 /// Lit l'inventaire complet depuis `.content/` sur un device monté.
-pub fn read_inventory(mount: &Path) -> Option<LuniiInventory> {
+pub fn read_inventory(mount: &Path) -> Option<StoryBoxInventory> {
     let content_dir = mount.join(".content");
     if !content_dir.is_dir() {
         return None;
@@ -696,7 +696,7 @@ pub fn read_inventory(mount: &Path) -> Option<LuniiInventory> {
         a_idx.cmp(&b_idx).then_with(|| a.path().cmp(&b.path()))
     });
 
-    let stories: Vec<LuniiStoryEntry> = dir_entries
+    let stories: Vec<StoryBoxStoryEntry> = dir_entries
         .iter()
         .filter_map(|e| {
             let short_uuid = e.file_name().to_string_lossy().to_uppercase().to_string();
@@ -707,14 +707,14 @@ pub fn read_inventory(mount: &Path) -> Option<LuniiInventory> {
             let title = read_story_title(&e.path(), &sidecar);
             let cover_path = find_cover_image(&e.path());
             let size_bytes = dir_size_bytes(&e.path());
-            Some(LuniiStoryEntry { short_uuid, sidecar, title, cover_path, size_bytes })
+            Some(StoryBoxStoryEntry { short_uuid, sidecar, title, cover_path, size_bytes })
         })
         .collect();
 
     let managed_stories = stories.iter().filter(|s| s.sidecar.is_some()).count();
     let total_stories = stories.len();
 
-    Some(LuniiInventory {
+    Some(StoryBoxInventory {
         mount: mount.to_string_lossy().into_owned(),
         stories,
         total_stories,
@@ -723,13 +723,13 @@ pub fn read_inventory(mount: &Path) -> Option<LuniiInventory> {
 }
 
 /// Détecte le device et retourne un inventaire discriminé.
-pub fn get_lunii_inventory() -> LuniiInventoryResult {
+pub fn get_storybox_inventory() -> StoryBoxInventoryResult {
     let probe = probe_platform();
 
     let mount_str = match probe.mount {
         Some(m) if probe.connected => m,
         _ => {
-            return LuniiInventoryResult {
+            return StoryBoxInventoryResult {
                 status: InventoryStatus::NotConnected,
                 mount: None,
                 stories: vec![],
@@ -742,7 +742,7 @@ pub fn get_lunii_inventory() -> LuniiInventoryResult {
 
     let content_dir = Path::new(&mount_str).join(".content");
     if !content_dir.is_dir() {
-        return LuniiInventoryResult {
+        return StoryBoxInventoryResult {
             status: InventoryStatus::NoContentDir,
             mount: Some(mount_str),
             stories: vec![],
@@ -753,7 +753,7 @@ pub fn get_lunii_inventory() -> LuniiInventoryResult {
     }
 
     match read_inventory(Path::new(&mount_str)) {
-        Some(inv) => LuniiInventoryResult {
+        Some(inv) => StoryBoxInventoryResult {
             status: InventoryStatus::Ok,
             mount: Some(mount_str),
             stories: inv.stories,
@@ -761,7 +761,7 @@ pub fn get_lunii_inventory() -> LuniiInventoryResult {
             managed_stories: inv.managed_stories,
             error: None,
         },
-        None => LuniiInventoryResult {
+        None => StoryBoxInventoryResult {
             status: InventoryStatus::ReadError,
             mount: Some(mount_str),
             stories: vec![],
@@ -777,7 +777,7 @@ mod tests {
     use super::{
         compare_story, move_story_in_pack_index, probe_root, read_inventory,
         read_sidecar, reorder_story_in_pack_index, write_pack_index_entries,
-        LuniiDeviceProbe, LuniiStoryEntry, SidecarData, StoryDeviceStatus,
+        StoryBoxDeviceProbe, StoryBoxStoryEntry, SidecarData, StoryDeviceStatus,
     };
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -809,14 +809,14 @@ mod tests {
         }
     }
 
-    fn connected_probe(root: &Path) -> LuniiDeviceProbe {
-        probe_root(root, 0).expect("expected a connected Lunii probe")
+    fn connected_probe(root: &Path) -> StoryBoxDeviceProbe {
+        probe_root(root, 0).expect("expected a connected boîte à histoires probe")
     }
 
     #[test]
     fn probe_root_detects_marker_and_counts_story_dirs() {
-        let root = TempDir::new("lunii-probe-marker");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-probe-marker");
+        let mount = root.path().join("STORYBOX");
         fs::create_dir_all(mount.join(".content").join("A1B2C3D4")).unwrap();
         fs::create_dir_all(mount.join(".content").join("E5F6G7H8")).unwrap();
         fs::write(mount.join(".md"), b"marker").unwrap();
@@ -832,8 +832,8 @@ mod tests {
 
     #[test]
     fn probe_root_falls_back_to_candidate_volume_name() {
-        let root = TempDir::new("lunii-probe-name");
-        let mount = root.path().join("Ma LUNII");
+        let root = TempDir::new("storybox-probe-name");
+        let mount = root.path().join("Ma STORYBOX");
         fs::create_dir_all(&mount).unwrap();
 
         let probe = connected_probe(root.path());
@@ -845,23 +845,23 @@ mod tests {
 
     #[test]
     fn probe_root_ignores_unrelated_volumes() {
-        let root = TempDir::new("lunii-probe-ignore");
+        let root = TempDir::new("storybox-probe-ignore");
         fs::create_dir_all(root.path().join("Macintosh HD")).unwrap();
         assert_eq!(probe_root(root.path(), 0), None);
     }
 
     #[test]
     fn inventory_none_when_no_content_dir() {
-        let root = TempDir::new("lunii-inv-no-content");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-inv-no-content");
+        let mount = root.path().join("STORYBOX");
         fs::create_dir_all(&mount).unwrap();
         assert!(read_inventory(&mount).is_none());
     }
 
     #[test]
     fn inventory_stories_without_sidecar() {
-        let root = TempDir::new("lunii-inv-no-sidecar");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-inv-no-sidecar");
+        let mount = root.path().join("STORYBOX");
         fs::create_dir_all(mount.join(".content").join("AABBCCDD")).unwrap();
         fs::create_dir_all(mount.join(".content").join("11223344")).unwrap();
 
@@ -876,13 +876,13 @@ mod tests {
 
     #[test]
     fn inventory_stories_with_valid_sidecar() {
-        let root = TempDir::new("lunii-inv-sidecar");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-inv-sidecar");
+        let mount = root.path().join("STORYBOX");
         let story_dir = mount.join(".content").join("DEADBEEF");
         fs::create_dir_all(&story_dir).unwrap();
         fs::write(
-            story_dir.join(".lunii-studio.json"),
-            r#"{"story_id":"abc-123","hash":"sha256:deadbeef","pushed_at":"2024-01-01T00:00:00Z","source":"lunii-studio"}"#,
+            story_dir.join(".la-forge-a-histoires.json"),
+            r#"{"story_id":"abc-123","hash":"sha256:deadbeef","pushed_at":"2024-01-01T00:00:00Z","source":"la-forge-a-histoires"}"#,
         ).unwrap();
 
         let inv = read_inventory(&mount).expect("inventory");
@@ -895,8 +895,8 @@ mod tests {
 
     #[test]
     fn inventory_respects_pack_index_order() {
-        let root = TempDir::new("lunii-inv-order");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-inv-order");
+        let mount = root.path().join("STORYBOX");
         fs::create_dir_all(mount.join(".content").join("AABBCCDD")).unwrap();
         fs::create_dir_all(mount.join(".content").join("11223344")).unwrap();
 
@@ -913,8 +913,8 @@ mod tests {
 
     #[test]
     fn move_story_updates_pack_index_order() {
-        let root = TempDir::new("lunii-move-order");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-move-order");
+        let mount = root.path().join("STORYBOX");
         fs::create_dir_all(&mount).unwrap();
 
         let mut first = [0u8; 16];
@@ -936,8 +936,8 @@ mod tests {
 
     #[test]
     fn reorder_story_rewrites_visible_index_and_preserves_hidden_index() {
-        let root = TempDir::new("lunii-reorder-order");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-reorder-order");
+        let mount = root.path().join("STORYBOX");
         fs::create_dir_all(&mount).unwrap();
 
         let mut first = [0u8; 16];
@@ -973,11 +973,11 @@ mod tests {
 
     #[test]
     fn inventory_skips_sidecar_with_invalid_json() {
-        let root = TempDir::new("lunii-inv-bad-json");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-inv-bad-json");
+        let mount = root.path().join("STORYBOX");
         let story_dir = mount.join(".content").join("BADBADBAD");
         fs::create_dir_all(&story_dir).unwrap();
-        fs::write(story_dir.join(".lunii-studio.json"), b"not json {{{").unwrap();
+        fs::write(story_dir.join(".la-forge-a-histoires.json"), b"not json {{{").unwrap();
 
         let inv = read_inventory(&mount).expect("inventory");
         assert_eq!(inv.managed_stories, 0);
@@ -986,12 +986,12 @@ mod tests {
 
     #[test]
     fn inventory_skips_sidecar_with_wrong_source() {
-        let root = TempDir::new("lunii-inv-wrong-source");
-        let mount = root.path().join("LUNII");
+        let root = TempDir::new("storybox-inv-wrong-source");
+        let mount = root.path().join("STORYBOX");
         let story_dir = mount.join(".content").join("CAFECAFE");
         fs::create_dir_all(&story_dir).unwrap();
         fs::write(
-            story_dir.join(".lunii-studio.json"),
+            story_dir.join(".la-forge-a-histoires.json"),
             r#"{"story_id":"x","hash":"sha256:x","pushed_at":"2024-01-01T00:00:00Z","source":"other-tool"}"#,
         ).unwrap();
 
@@ -1002,20 +1002,20 @@ mod tests {
 
     #[test]
     fn read_sidecar_returns_none_when_file_absent() {
-        let root = TempDir::new("lunii-sidecar-absent");
+        let root = TempDir::new("storybox-sidecar-absent");
         let story_dir = root.path().join("AABB1122");
         fs::create_dir_all(&story_dir).unwrap();
         assert!(read_sidecar(&story_dir).is_none());
     }
 
-    fn make_entry(short_uuid: &str, story_id: &str, hash: &str) -> LuniiStoryEntry {
-        LuniiStoryEntry {
+    fn make_entry(short_uuid: &str, story_id: &str, hash: &str) -> StoryBoxStoryEntry {
+        StoryBoxStoryEntry {
             short_uuid: short_uuid.to_string(),
             sidecar: Some(SidecarData {
                 story_id: story_id.to_string(),
                 hash: hash.to_string(),
                 pushed_at: "2024-01-01T00:00:00Z".to_string(),
-                source: "lunii-studio".to_string(),
+                source: "la-forge-a-histoires".to_string(),
             }),
             title: Some(story_id.replace('_', " ")),
             cover_path: None,
@@ -1023,8 +1023,8 @@ mod tests {
         }
     }
 
-    fn make_unmanaged(short_uuid: &str) -> LuniiStoryEntry {
-        LuniiStoryEntry { short_uuid: short_uuid.to_string(), sidecar: None, title: None, cover_path: None, size_bytes: 0 }
+    fn make_unmanaged(short_uuid: &str) -> StoryBoxStoryEntry {
+        StoryBoxStoryEntry { short_uuid: short_uuid.to_string(), sidecar: None, title: None, cover_path: None, size_bytes: 0 }
     }
 
     #[test]

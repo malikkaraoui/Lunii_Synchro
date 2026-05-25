@@ -1,24 +1,24 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_settings;
-mod lunii_device;
-mod lunii_sync;
+mod storybox_device;
+mod storybox_sync;
 
-use lunii_device::{LuniiDeviceInfo, LuniiDeviceProbe, LuniiInventoryResult, StoryCompareResult};
-use lunii_sync::{AudioFile, StorageInfo, SyncPlan};
+use storybox_device::{StoryBoxDeviceInfo, StoryBoxDeviceProbe, StoryBoxInventoryResult, StoryCompareResult};
+use storybox_sync::{AudioFile, StorageInfo, SyncPlan};
 use std::path::PathBuf;
 use tauri::{Emitter, Manager};
 
 // ── Commandes device ──────────────────────────────────────────────────────────
 
 #[tauri::command]
-fn probe_lunii_device() -> LuniiDeviceProbe {
-    lunii_device::probe_lunii_device()
+fn probe_storybox_device() -> StoryBoxDeviceProbe {
+    storybox_device::probe_storybox_device()
 }
 
 #[tauri::command]
-fn get_lunii_inventory() -> LuniiInventoryResult {
-    lunii_device::get_lunii_inventory()
+fn get_storybox_inventory() -> StoryBoxInventoryResult {
+    storybox_device::get_storybox_inventory()
 }
 
 #[tauri::command]
@@ -26,33 +26,33 @@ fn check_story_on_device(
     story_id: String,
     local_hash: Option<String>,
 ) -> Option<StoryCompareResult> {
-    lunii_device::check_story_on_device(story_id, local_hash)
+    storybox_device::check_story_on_device(story_id, local_hash)
 }
 
 #[tauri::command]
-fn get_device_info(mount: String) -> LuniiDeviceInfo {
-    lunii_device::read_device_info(&mount)
+fn get_device_info(mount: String) -> StoryBoxDeviceInfo {
+    storybox_device::read_device_info(&mount)
 }
 
 // ── Commandes espace disque + listing audio ───────────────────────────────────
 
 #[tauri::command]
 fn get_storage_info(mount: String) -> Result<StorageInfo, String> {
-    lunii_sync::get_storage_info(&mount)
+    storybox_sync::get_storage_info(&mount)
 }
 
 #[tauri::command]
 fn list_audio_files(folder_path: String) -> Result<Vec<AudioFile>, String> {
-    lunii_sync::scan_audio_folder(&folder_path)
+    storybox_sync::scan_audio_folder(&folder_path)
 }
 
 // ── Commandes sync ────────────────────────────────────────────────────────────
 
 #[tauri::command]
 fn scan_and_plan(folder_path: String) -> Result<SyncPlan, String> {
-    let audio_files = lunii_sync::scan_audio_folder(&folder_path)?;
-    let inventory = lunii_device::get_lunii_inventory();
-    Ok(lunii_sync::determine_needed_pushes(&audio_files, &inventory))
+    let audio_files = storybox_sync::scan_audio_folder(&folder_path)?;
+    let inventory = storybox_device::get_storybox_inventory();
+    Ok(storybox_sync::determine_needed_pushes(&audio_files, &inventory))
 }
 
 #[tauri::command]
@@ -62,12 +62,12 @@ fn write_sidecar_after_push(
     story_id: String,
     hash: String,
 ) -> Result<(), String> {
-    lunii_sync::write_sidecar(&mount, &short_uuid, &story_id, &hash)
+    storybox_sync::write_sidecar(&mount, &short_uuid, &story_id, &hash)
 }
 
 #[tauri::command]
 fn remove_orphan_story(mount: String, short_uuid: String) -> Result<(), String> {
-    lunii_sync::remove_orphan_story(&mount, &short_uuid)
+    storybox_sync::remove_orphan_story(&mount, &short_uuid)
 }
 
 #[tauri::command]
@@ -76,7 +76,7 @@ fn move_story_in_pack_index(
     short_uuid: String,
     direction: i32,
 ) -> Result<(), String> {
-    lunii_device::move_story_in_pack_index(&mount, &short_uuid, direction)
+    storybox_device::move_story_in_pack_index(&mount, &short_uuid, direction)
 }
 
 #[tauri::command]
@@ -85,7 +85,7 @@ fn reorder_story_in_pack_index(
     short_uuid: String,
     new_index: usize,
 ) -> Result<(), String> {
-    lunii_device::reorder_story_in_pack_index(&mount, &short_uuid, new_index)
+    storybox_device::reorder_story_in_pack_index(&mount, &short_uuid, new_index)
 }
 
 // ── Réglages persistants ──────────────────────────────────────────────────────
@@ -215,7 +215,7 @@ async fn eject_device(mount: String) -> Result<(), String> {
 
 // ── Lancement du bridge Python ────────────────────────────────────────────────
 
-/// Lance lunii-bridge.py en subprocess, stream les lignes JSON vers le frontend
+/// Lance boite-bridge.py en subprocess, stream les lignes JSON vers le frontend
 /// via l'événement Tauri `sync:line`, et retourne quand le process termine.
 #[tauri::command]
 async fn start_sync(
@@ -249,7 +249,7 @@ async fn start_sync(
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Impossible de lancer lunii-bridge.py avec '{}' : {e}", python))?;
+        .map_err(|e| format!("Impossible de lancer boite-bridge.py avec '{}' : {e}", python))?;
 
     let stdout = child.stdout.take().expect("stdout pipe");
     let stderr = child.stderr.take().expect("stderr pipe");
@@ -283,13 +283,13 @@ async fn start_sync(
         Ok("ok".to_string())
     } else {
         Err(format!(
-            "lunii-bridge.py a échoué (code {})",
+            "boite-bridge.py a échoué (code {})",
             status.code().unwrap_or(-1)
         ))
     }
 }
 
-/// Répare le fichier d'index (.pi) de la Lunii via --repair-index dans le bridge Python.
+/// Répare le fichier d'index (.pi) de la boîte à histoires via --repair-index dans le bridge Python.
 #[tauri::command]
 async fn repair_pack_index(
     app: tauri::AppHandle,
@@ -315,7 +315,7 @@ async fn repair_pack_index(
 
     let mut child = command
         .spawn()
-        .map_err(|e| format!("Impossible de lancer lunii-bridge.py : {e}"))?;
+        .map_err(|e| format!("Impossible de lancer boite-bridge.py : {e}"))?;
 
     let stdout = child.stdout.take().expect("stdout");
     let app2 = app.clone();
@@ -367,39 +367,39 @@ fn locate_python3() -> String {
     "python3".to_string()
 }
 
-/// Localise `lunii-bridge.py` dans le bundle (Resources/) ou en dev (racine projet).
+/// Localise `boite-bridge.py` dans le bundle (Resources/) ou en dev (racine projet).
 fn locate_bridge(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     if let Ok(res_dir) = app.path().resource_dir() {
-        // Tauri bundle : Resources/lunii-bridge.py
-        let c1 = res_dir.join("lunii-bridge.py");
+        // Tauri bundle : Resources/boite-bridge.py
+        let c1 = res_dir.join("boite-bridge.py");
         if c1.exists() { return Ok(c1); }
-        // Tauri bundle avec chemin ../  → Resources/_up_/lunii-bridge.py
-        let c2 = res_dir.join("_up_").join("lunii-bridge.py");
+        // Tauri bundle avec chemin ../  → Resources/_up_/boite-bridge.py
+        let c2 = res_dir.join("_up_").join("boite-bridge.py");
         if c2.exists() { return Ok(c2); }
     }
 
     // Mode dev : remonte à la racine du projet
     if let Ok(exe) = std::env::current_exe() {
         for ancestor in exe.ancestors().skip(1) {
-            let candidate = ancestor.join("lunii-bridge.py");
+            let candidate = ancestor.join("boite-bridge.py");
             if candidate.exists() { return Ok(candidate); }
         }
     }
 
-    Err("lunii-bridge.py introuvable dans le bundle.".to_string())
+    Err("boite-bridge.py introuvable dans le bundle.".to_string())
 }
 
 // ── Vérification mise à jour ──────────────────────────────────────────────────
 
 const GITHUB_RELEASE_URL: &str =
-    "https://api.github.com/repos/malikkaraoui/Lunii_Synchro/releases/latest";
+    "https://api.github.com/repos/malikkaraoui/Synchro_boite_a_histoires/releases/latest";
 const GITHUB_RELEASES_PAGE: &str =
-    "https://github.com/malikkaraoui/Lunii_Synchro/releases/latest";
+    "https://github.com/malikkaraoui/Synchro_boite_a_histoires/releases/latest";
 
 #[tauri::command]
 async fn check_for_update() -> Result<String, String> {
     let client = reqwest::Client::builder()
-        .user_agent("LuniiSync/2.0")
+        .user_agent("Synchro Boîte à histoires/2.0")
         .timeout(std::time::Duration::from_secs(8))
         .build()
         .map_err(|e| format!("HTTP client error: {e}"))?;
@@ -429,7 +429,7 @@ fn open_release_page() -> Result<(), String> {
 #[tauri::command]
 async fn download_and_install_update(app: tauri::AppHandle) -> Result<(), String> {
     let client = reqwest::Client::builder()
-        .user_agent("LuniiSync/2.0")
+        .user_agent("Synchro Boîte à histoires/2.0")
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| e.to_string())?;
@@ -441,9 +441,9 @@ async fn download_and_install_update(app: tauri::AppHandle) -> Result<(), String
         .json().await.map_err(|e| e.to_string())?;
 
     #[cfg(target_arch = "aarch64")]
-    let preferred_asset = "LuniiSync-macOS-AppleSilicon.tar.gz";
+    let preferred_asset = "Synchro Boîte à histoires-macOS-AppleSilicon.tar.gz";
     #[cfg(target_arch = "x86_64")]
-    let preferred_asset = "LuniiSync-macOS-Intel.tar.gz";
+    let preferred_asset = "Synchro Boîte à histoires-macOS-Intel.tar.gz";
 
     let asset_url = release["assets"]
         .as_array()
@@ -462,8 +462,8 @@ async fn download_and_install_update(app: tauri::AppHandle) -> Result<(), String
         .bytes().await.map_err(|e| e.to_string())?;
 
     let tmp_dir = std::env::temp_dir();
-    let archive_path = tmp_dir.join("luniisync_update.tar.gz");
-    let extract_dir = tmp_dir.join("luniisync_update");
+    let archive_path = tmp_dir.join("synchro_boite_a_histoires_update.tar.gz");
+    let extract_dir = tmp_dir.join("synchro_boite_a_histoires_update");
 
     std::fs::write(&archive_path, &bytes).map_err(|e| e.to_string())?;
 
@@ -498,7 +498,7 @@ async fn download_and_install_update(app: tauri::AppHandle) -> Result<(), String
         extract = extract_dir.to_str().unwrap(),
         archive = archive_path.to_str().unwrap(),
     );
-    let script_path = tmp_dir.join("luniisync_install.sh");
+    let script_path = tmp_dir.join("synchro_boite_a_histoires_install.sh");
     std::fs::write(&script_path, &script).map_err(|e| e.to_string())?;
 
     std::process::Command::new("bash")
@@ -518,9 +518,9 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            probe_lunii_device,
+            probe_storybox_device,
             get_device_info,
-            get_lunii_inventory,
+            get_storybox_inventory,
             check_story_on_device,
             get_storage_info,
             list_audio_files,
@@ -542,5 +542,5 @@ fn main() {
             repair_pack_index,
         ])
         .run(tauri::generate_context!())
-        .expect("Erreur au démarrage de LuniiSync");
+        .expect("Erreur au démarrage de Synchro Boîte à histoires");
 }

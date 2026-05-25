@@ -1,5 +1,5 @@
 {
-  "identifier": "com.malikkaraoui.luniisync",
+  "identifier": "com.malikkaraoui.synchro_boite_a_histoires",
   "bundle": {
     "targets": ["app"],
     "category": "Utility",
@@ -7,7 +7,7 @@
     "resources": [],
     "macOS": {
       "minimumSystemVersion": "12.0",
-      "entitlements": "../lunii-app-store.entitlements",
+      "entitlements": "../boite-app-store.entitlements",
       "files": {
         "../PrivacyInfo.xcprivacy": "PrivacyInfo.xcprivacy"
       }

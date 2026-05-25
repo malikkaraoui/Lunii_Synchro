@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-macos.sh — V2 : compile LuniiSync.app via Tauri (Rust + frontend statique)
+# build-macos.sh — V2 : compile Synchro Boîte à histoires.app via Tauri (Rust + frontend statique)
 # Usage : ./build-macos.sh
 set -euo pipefail
 
@@ -25,7 +25,7 @@ create_simple_dmg() {
     ln -s /Applications "$staging_dir/Applications"
 
     hdiutil create \
-        -volname "LuniiSync" \
+        -volname "Synchro Boîte à histoires" \
         -srcfolder "$staging_dir" \
         -ov \
         -format UDZO \
@@ -83,7 +83,7 @@ detect_arch_label() {
 }
 
 echo ""
-echo "=== LuniiSync V2 — Build macOS ==="
+echo "=== Synchro Boîte à histoires V2 — Build macOS ==="
 echo ""
 
 if [ "$APPLE_SIGNING_IDENTITY" = "-" ]; then
@@ -119,7 +119,7 @@ fi
 
 # ── 3. Dépendances Python (sidecar) ──────────────────────────────────────────
 echo ""
-echo "=== 3. Dépendances Python (lunii-bridge) ==="
+echo "=== 3. Dépendances Python (boite-bridge) ==="
 pip3 install --quiet --upgrade \
     PySide6-Essentials \
     xxtea \
@@ -131,11 +131,11 @@ pip3 install --quiet --upgrade \
     unidecode \
     py7zr
 
-# ── 4. Lunii.QT ───────────────────────────────────────────────────────────────
+# ── 4. StoryBox.QT ───────────────────────────────────────────────────────────────
 echo ""
-echo "=== 4. Lunii.QT ==="
-if [ ! -d "Lunii.QT" ]; then
-    git clone --quiet https://github.com/o-daneel/Lunii.QT.git
+echo "=== 4. StoryBox.QT ==="
+if [ ! -d "StoryBox.QT" ]; then
+    git clone --quiet https://github.com/o-daneel/StoryBox.QT.git
     echo "   Cloné."
 else
     echo "   Déjà présent."
@@ -154,7 +154,7 @@ cargo "${BUILD_ARGS[@]}"
 
 # ── 6. Vérification ───────────────────────────────────────────────────────────
 echo ""
-APP_PATH="$TARGET_ROOT/bundle/macos/LuniiSync.app"
+APP_PATH="$TARGET_ROOT/bundle/macos/Synchro Boîte à histoires.app"
 if [ -d "$APP_PATH" ]; then
     APP_SIZE=$(du -sh "$APP_PATH" | cut -f1)
     echo "✅  $APP_PATH créé ($APP_SIZE)"
@@ -165,8 +165,8 @@ if [ -d "$APP_PATH" ]; then
     echo ""
     echo "=== 7. Création DMG ==="
     ARCH_LABEL="$(detect_arch_label)"
-    TARBALL_PATH="src-tauri/target/release/bundle/macos/LuniiSync-macOS-${ARCH_LABEL}.tar.gz"
-    DMG_PATH="src-tauri/target/release/bundle/dmg/LuniiSync-macOS-${ARCH_LABEL}.dmg"
+    TARBALL_PATH="src-tauri/target/release/bundle/macos/Synchro Boîte à histoires-macOS-${ARCH_LABEL}.tar.gz"
+    DMG_PATH="src-tauri/target/release/bundle/dmg/Synchro Boîte à histoires-macOS-${ARCH_LABEL}.dmg"
     create_updater_tarball "$APP_PATH" "$TARBALL_PATH"
     create_simple_dmg "$APP_PATH" "$DMG_PATH"
     notarize_dmg_if_configured "$DMG_PATH"

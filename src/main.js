@@ -1,4 +1,4 @@
-// LuniiSync V2 — UI deux colonnes
+// Synchro Boîte à histoires V2 — UI deux colonnes
 const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
@@ -10,7 +10,7 @@ const APP_VERSION = "2.1.12";
 let deviceMount   = null;
 let deviceId      = null;
 let appSettings   = { devices: {}, lastAudioFolder: null, theme: "auto" };
-let deviceStories = [];       // LuniiStoryEntry[]
+let deviceStories = [];       // StoryBoxStoryEntry[]
 let audioFiles    = [];       // AudioFile[]
 let pendingIds     = new Set(); // story_id en attente de sync
 let pendingDeletes = new Set(); // short_uuid en attente de suppression
@@ -302,7 +302,7 @@ function openRenameModal(id) {
 async function pollDevice() {
   if (syncing || reordering || draggingStory) return;
   try {
-    const probe = await invoke("probe_lunii_device");
+    const probe = await invoke("probe_storybox_device");
     if (probe.connected && probe.mount) {
       deviceMount = probe.mount;
       deviceId = probe.deviceId || null;
@@ -337,7 +337,7 @@ async function pollDevice() {
       }
 
       // Inventaire
-      const inv = await invoke("get_lunii_inventory");
+      const inv = await invoke("get_storybox_inventory");
       deviceStories = inv.stories || [];
       renderDeviceList();
 
@@ -392,7 +392,7 @@ function renderStorage(st) {
 
 async function refreshDeviceInventory() {
   if (!deviceMount) return;
-  const inv = await invoke("get_lunii_inventory");
+  const inv = await invoke("get_storybox_inventory");
   deviceStories = inv.stories || [];
   renderDeviceList();
   refreshFolderBadges();
@@ -614,7 +614,7 @@ function renderDeviceList() {
     info.appendChild(titleEl);
     const meta = document.createElement("div");
     meta.className = "story-meta";
-    meta.textContent = hasName ? s.shortUuid : "Non géré par LuniiSync";
+    meta.textContent = hasName ? s.shortUuid : "Non géré par Synchro Boîte à histoires";
     info.appendChild(meta);
     row.appendChild(info);
 
@@ -1010,7 +1010,7 @@ function handleBridgeMsg(msg) {
         log(isOk ? "ok" : "warn", msg.message);
         if (isOk) showSyncStatus(msg.message);
       } else if (msg.step === "setup") {
-        const label = msg.message.includes("Clon") ? "⬇ Clonage Lunii.QT…"
+        const label = msg.message.includes("Clon") ? "⬇ Clonage StoryBox.QT…"
                     : msg.message.includes("Téléch") ? "⬇ Téléchargement studio-pack-generator…"
                     : msg.message.includes("prêt") ? "✓ Dépendances prêtes"
                     : `⚙ ${msg.message}`;
@@ -1094,7 +1094,7 @@ $repairBtn.addEventListener("click", async () => {
   $logDrawer.classList.remove("hidden");
   try {
     await invoke("repair_pack_index", { deviceMount });
-    log("ok", "Index réparé — redémarre la Lunii pour voir les histoires.");
+    log("ok", "Index réparé — redémarre la boîte à histoires pour voir les histoires.");
   } catch (e) {
     log("err", `Réparation échouée : ${e}`);
   } finally {

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "LuniiSync",
+  "productName": "Synchro Boîte à histoires",
   "version": "2.1.12",
-  "identifier": "com.luniisync.app",
+  "identifier": "com.synchro_boite_a_histoires.app",
   "build": {
     "frontendDist": "../src"
   },
@@ -11,7 +11,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "LuniiSync",
+        "title": "Synchro Boîte à histoires",
         "width": 760,
         "height": 620,
         "minWidth": 640,
@@ -27,9 +27,9 @@
     "active": true,
     "targets": "all",
     "icon": ["icons/icon.icns", "icons/icon.png", "icons/icon_256.png", "icons/icon_512.png"],
-    "resources": ["../lunii-bridge.py"],
+    "resources": ["../boite-bridge.py"],
     "macOS": {
-      "entitlements": "../lunii-app.entitlements",
+      "entitlements": "../boite-app.entitlements",
       "signingIdentity": "-"
     }
   }

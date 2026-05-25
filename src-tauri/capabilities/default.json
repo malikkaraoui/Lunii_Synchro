@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "LuniiSync capabilities",
+  "description": "Synchro Boîte à histoires capabilities",
   "windows": ["main"],
   "permissions": [
     "core:default",

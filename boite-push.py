@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-lunii-push.py — Synchronise un dossier audio avec la Lunii
-Usage : python lunii-push.py /chemin/vers/dossier/audio
+boite-push.py — Synchronise un dossier audio avec la boîte à histoires
+Usage : python boite-push.py /chemin/vers/dossier/audio
 - Nouveaux fichiers → importés
-- Fichiers supprimés → retirés de la Lunii
+- Fichiers supprimés → retirés de la boîte à histoires
 - Fichiers déjà présents → ignorés
 """
 
@@ -21,19 +21,19 @@ from pathlib import Path
 import platform
 
 SCRIPT_DIR = Path(__file__).parent
-LUNII_QT_PATH = SCRIPT_DIR / "Lunii.QT"
+STORYBOX_QT_PATH = SCRIPT_DIR / "StoryBox.QT"
 _spg_name = "studio-pack-generator.exe" if platform.system() == "Windows" else "studio-pack-generator"
 SPG_BINARY = SCRIPT_DIR / _spg_name
 MANIFESTS_DIR = SCRIPT_DIR / "manifests"
 
-sys.path.insert(0, str(LUNII_QT_PATH))
+sys.path.insert(0, str(STORYBOX_QT_PATH))
 
 # QCoreApplication doit être créée AVANT tout import de modules Qt
 from PySide6.QtCore import QCoreApplication
 _app = QCoreApplication(sys.argv)
 
 import logging
-from pkg.api.device_lunii import LuniiDevice, LUNII_LOGGER
+from pkg.api.device_storybox import StoryBoxDevice, STORYBOX_LOGGER
 
 logging.basicConfig(level=logging.WARNING, format="[%(levelname)s] %(message)s")
 
@@ -48,7 +48,7 @@ def load_manifest(device_snu: str) -> dict:
     if p.exists():
         return json.loads(p.read_text())
     # Migration depuis l'ancien fichier non nommé par SNU
-    legacy = SCRIPT_DIR / "lunii-manifest.json"
+    legacy = SCRIPT_DIR / "storybox-manifest.json"
     if legacy.exists():
         data = json.loads(legacy.read_text())
         p.write_text(json.dumps(data, indent=2))
@@ -62,7 +62,7 @@ def save_manifest(device_snu: str, manifest: dict):
     manifest_path(device_snu).write_text(json.dumps(manifest, indent=2))
 
 
-def find_lunii():
+def find_storybox():
     system = platform.system()
     if system == "Darwin":
         candidates = Path("/Volumes").iterdir()
@@ -156,7 +156,7 @@ def _patch_direct_play(zip_path):
 
 def _inject_cover_image(zip_path, title):
     """Ajoute une image de couverture dans le ZIP STUdio si elle est absente.
-    Sans image, ri_data est vide → bt vide → histoire invisible sur la Lunii."""
+    Sans image, ri_data est vide → bt vide → histoire invisible sur la boîte à histoires."""
     from PIL import Image, ImageDraw
 
     with zipfile.ZipFile(zip_path) as z:
@@ -190,8 +190,8 @@ def _inject_cover_image(zip_path, title):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage : python lunii-push.py /chemin/vers/dossier/audio")
-        print("Exemple : python lunii-push.py /Users/malik/Downloads/Audio")
+        print("Usage : python boite-push.py /chemin/vers/dossier/audio")
+        print("Exemple : python boite-push.py /Users/malik/Downloads/Audio")
         sys.exit(1)
 
     audio_dir = Path(sys.argv[1])
@@ -207,16 +207,16 @@ def main():
         print(f"❌ Aucun fichier audio trouvé dans : {audio_dir}")
         sys.exit(1)
 
-    # ── 1. Détecter la Lunii ──────────────────────────────────────────────
-    print("🔍 Détection de la Lunii USB...")
-    lunii_path = find_lunii()
-    if not lunii_path:
-        print("❌ Lunii non trouvée. Branchez-la en USB puis réessayez.")
+    # ── 1. Détecter la boîte à histoires ──────────────────────────────────────────────
+    print("🔍 Détection de la boîte à histoires USB...")
+    storybox_path = find_storybox()
+    if not storybox_path:
+        print("❌ boîte à histoires non trouvée. Branchez-la en USB puis réessayez.")
         sys.exit(1)
-    print(f"✅ Lunii détectée : {lunii_path}")
+    print(f"✅ boîte à histoires détectée : {storybox_path}")
 
-    # ── 2. Charger le device Lunii ────────────────────────────────────────
-    device = LuniiDevice(lunii_path)
+    # ── 2. Charger le device boîte à histoires ────────────────────────────────────────
+    device = StoryBoxDevice(storybox_path)
     if device.device_version == 0:
         print("❌ Impossible de lire les infos du device. Vérifiez la connexion USB.")
         sys.exit(1)
@@ -233,7 +233,7 @@ def main():
         if filename not in current_names:
             story = next((s for s in device.stories if s.short_uuid == short_uuid), None)
             if story:
-                story_dir = Path(lunii_path) / ".content" / short_uuid
+                story_dir = Path(storybox_path) / ".content" / short_uuid
                 if story_dir.exists():
                     shutil.rmtree(story_dir)
                 device.stories.remove(story)
@@ -259,7 +259,7 @@ def main():
             try:
                 print(f"  → Génération du pack...")
                 zip_path = generate_story_zip(audio_file, Path(tmp))
-                print(f"  → Import sur la Lunii...")
+                print(f"  → Import sur la boîte à histoires...")
                 result = device.import_story(zip_path)
                 if result is False:
                     raise RuntimeError("import_story a retourné False (espace insuffisant ?)")
@@ -276,7 +276,7 @@ def main():
     save_manifest(device_snu, manifest)
 
     total = imported + already
-    print(f"🎉 Lunii synchronisée : {total} histoire(s) active(s)"
+    print(f"🎉 boîte à histoires synchronisée : {total} histoire(s) active(s)"
           f"{f', {removed} retirée(s)' if removed else ''}"
           f"{f', {imported} ajoutée(s)' if imported else ''}.")
     if errors:

@@ -1,4 +1,4 @@
-// LuniiSync V2 — UI deux colonnes
+// Synchro Boîte à histoires V2 — UI deux colonnes
 const { invoke } = window.__TAURI__.core;
 const { open }   = window.__TAURI__.dialog;
 const { listen } = window.__TAURI__.event;
@@ -13,7 +13,7 @@ let importAudioSupported = true;
 let deviceMount   = null;
 let deviceId      = null;
 let appSettings   = { devices: {}, lastAudioFolder: null, theme: "auto" };
-let deviceStories = [];       // LuniiStoryEntry[]
+let deviceStories = [];       // StoryBoxStoryEntry[]
 let audioFiles    = [];       // AudioFile[]
 let pendingIds     = new Set(); // story_id en attente de sync
 let pendingDeletes = new Set(); // short_uuid en attente de suppression
@@ -46,7 +46,7 @@ const $folderHeader    = document.getElementById("folder-list-header");
 const $folderCount     = document.getElementById("folder-file-count");
 const $syncAvailabilityNote = document.getElementById("sync-availability-note");
 const $addAllBtn       = document.getElementById("add-all-btn");
-const $selectLuniiBtn  = document.getElementById("select-lunii-btn");
+const $selectStoryboxBtn  = document.getElementById("select-storybox-btn");
 const $deviceEmptyLabel = document.getElementById("device-empty-label");
 const $removeAllBtn    = document.getElementById("remove-all-btn");
 const $syncStatusBar   = document.getElementById("sync-status-bar");
@@ -87,9 +87,9 @@ function applyDistributionChannelUi(channel = distributionChannel) {
   $syncAvailabilityNote?.classList.add("hidden");
   $pickBtn.disabled = false;
   $pickBtn.title = "Parcourir…";
-  $selectLuniiBtn?.classList.toggle("hidden", !isAppStore);
+  $selectStoryboxBtn?.classList.toggle("hidden", !isAppStore);
   if ($deviceEmptyLabel) {
-    $deviceEmptyLabel.textContent = isAppStore ? "Sélectionnez votre Lunii" : "Branchez votre Lunii";
+    $deviceEmptyLabel.textContent = isAppStore ? "Sélectionnez votre boîte à histoires" : "Branchez votre boîte à histoires";
   }
   updateSyncButton();
 }
@@ -356,7 +356,7 @@ async function pollDevice() {
   try {
     let probe;
     if (isMacAppStoreChannel() && deviceMount) {
-      const valid = await invoke("validate_lunii_mount", { path: deviceMount });
+      const valid = await invoke("validate_storybox_mount", { path: deviceMount });
       if (!valid) deviceMount = null;
       probe = valid
         ? { connected: true, mount: deviceMount, deviceId: null, markerFound: true, contentDirPresent: true, storyDirCount: 0 }
@@ -364,7 +364,7 @@ async function pollDevice() {
     } else if (isMacAppStoreChannel()) {
       probe = { connected: false };
     } else {
-      probe = await invoke("probe_lunii_device");
+      probe = await invoke("probe_storybox_device");
     }
     if (probe.connected && probe.mount) {
       deviceMount = probe.mount;
@@ -375,7 +375,7 @@ async function pollDevice() {
       $devicePath.classList.remove("hidden");
       $ejectBtn.classList.remove("hidden");
       $repairBtn.classList.remove("hidden");
-      $selectLuniiBtn?.classList.add("hidden");
+      $selectStoryboxBtn?.classList.add("hidden");
       // Affiche le nom ou propose d'en donner un
       if (deviceId) {
         // Migration : purger toutes les vieilles entrées UUID dès qu'une entrée serial existe
@@ -401,7 +401,7 @@ async function pollDevice() {
       }
 
       // Inventaire
-      const inv = await invoke("get_lunii_inventory");
+      const inv = await invoke("get_storybox_inventory");
       deviceStories = inv.stories || [];
       renderDeviceList();
 
@@ -436,7 +436,7 @@ async function pollDevice() {
       $deviceFwLabel.classList.add("hidden");
       const $t = document.getElementById("panel-device-title");
       if ($t) { $t.textContent = "Boîte à histoires"; $t.classList.remove("device-named"); }
-      if (isMacAppStoreChannel()) $selectLuniiBtn?.classList.remove("hidden");
+      if (isMacAppStoreChannel()) $selectStoryboxBtn?.classList.remove("hidden");
     }
   } catch (e) {
     deviceMount = null;
@@ -457,7 +457,7 @@ function renderStorage(st) {
 
 async function refreshDeviceInventory() {
   if (!deviceMount) return;
-  const inv = await invoke("get_lunii_inventory");
+  const inv = await invoke("get_storybox_inventory");
   deviceStories = inv.stories || [];
   renderDeviceList();
   refreshFolderBadges();
@@ -679,7 +679,7 @@ function renderDeviceList() {
     info.appendChild(titleEl);
     const meta = document.createElement("div");
     meta.className = "story-meta";
-    meta.textContent = hasName ? s.shortUuid : "Non géré par LuniiSync";
+    meta.textContent = hasName ? s.shortUuid : "Non géré par Synchro Boîte à histoires";
     info.appendChild(meta);
     row.appendChild(info);
 
@@ -808,19 +808,19 @@ $pickBtn.addEventListener("click", async () => {
   await loadFolder(selected);
 });
 
-$selectLuniiBtn?.addEventListener("click", async () => {
+$selectStoryboxBtn?.addEventListener("click", async () => {
   try {
-    const selected = await open({ directory: true, multiple: false, title: "Sélectionner la boîte à histoires Lunii" });
+    const selected = await open({ directory: true, multiple: false, title: "Sélectionner la boîte à histoires boîte à histoires" });
     if (!selected) return;
     const path = typeof selected === "string" ? selected : selected[0];
     if (!path) return;
-    const valid = await invoke("validate_lunii_mount", { path });
+    const valid = await invoke("validate_storybox_mount", { path });
     if (!valid) {
-      showToast("Ce dossier ne semble pas être une boîte Lunii (fichier .md absent).", "error");
+      showToast("Ce dossier ne semble pas être une boîte boîte à histoires (fichier .md absent).", "error");
       return;
     }
     deviceMount = path;
-    $selectLuniiBtn.classList.add("hidden");
+    $selectStoryboxBtn.classList.add("hidden");
     await pollDevice();
   } catch (e) {
     const msg = String(e);
@@ -1104,7 +1104,7 @@ function handleBridgeMsg(msg) {
         log(isOk ? "ok" : "warn", msg.message);
         if (isOk) showSyncStatus(msg.message);
       } else if (msg.step === "setup") {
-        const label = msg.message.includes("Clon") ? "⬇ Clonage Lunii.QT…"
+        const label = msg.message.includes("Clon") ? "⬇ Clonage StoryBox.QT…"
                     : msg.message.includes("Téléch") ? "⬇ Téléchargement studio-pack-generator…"
                     : msg.message.includes("prêt") ? "✓ Dépendances prêtes"
                     : `⚙ ${msg.message}`;
@@ -1191,8 +1191,8 @@ $repairBtn.addEventListener("click", async () => {
   try {
     await invoke("repair_pack_index", { deviceMount });
     log("ok", isMacAppStoreChannel()
-      ? "Index réparé nativement — redémarre la Lunii pour voir les histoires."
-      : "Index réparé — redémarre la Lunii pour voir les histoires.");
+      ? "Index réparé nativement — redémarre la boîte à histoires pour voir les histoires."
+      : "Index réparé — redémarre la boîte à histoires pour voir les histoires.");
   } catch (e) {
     log("err", `Réparation échouée : ${e}`);
   } finally {

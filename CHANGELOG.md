@@ -1,4 +1,4 @@
-# Changelog — LuniiSync
+# Changelog — Synchro Boîte à histoires
 
 Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
@@ -8,7 +8,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ### Corrigé
 
-- purge persistante des anciennes boîtes mémorisées par UUID dès qu’une Lunii est reconnue via `serial-*`
+- purge persistante des anciennes boîtes mémorisées par UUID dès qu’une boîte à histoires est reconnue via `serial-*`
 - suppression réelle des boîtes enregistrées vides dans les réglages
 - build macOS Apple Silicon régénéré avec le correctif du doublon de boîtes dans les réglages
 
@@ -25,7 +25,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 - Préparation de l’exécution Python rendue plus robuste hors macOS
 - Build macOS direct-download signé en ad-hoc par défaut pour éviter le faux message « app endommagée » sur Apple Silicon téléchargé
 - Vérification de signature bundle ajoutée au script `build-macos.sh`, avec mode Developer ID / notarization documenté
-- Les réglages n’empilent plus les anciennes boîtes mémorisées par UUID quand une Lunii est désormais reconnue via `serial-*` ; les anciennes entrées sont maintenant purgées de façon persistante
+- Les réglages n’empilent plus les anciennes boîtes mémorisées par UUID quand une boîte à histoires est désormais reconnue via `serial-*` ; les anciennes entrées sont maintenant purgées de façon persistante
 
 ---
 
@@ -53,7 +53,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ### Corrigé
 
-- Réordonnancement maintenant réellement persisté sur la Lunii : réécriture cohérente de `.pi` **et** `.pi.hidden`, comme `Lunii.QT`
+- Réordonnancement maintenant réellement persisté sur la boîte à histoires : réécriture cohérente de `.pi` **et** `.pi.hidden`, comme `StoryBox.QT`
 - Après déplacement, l’app relit immédiatement l’inventaire de la boîte pour éviter l’effet “ça bouge puis ça revient”
 
 ---
@@ -62,7 +62,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ### Ajouté
 
-- L’ordre affiché des histoires suit maintenant le vrai fichier d’index Lunii `.pi`, donc la liste dans l’app reflète enfin l’ordre réel de lecture sur la boîte
+- L’ordre affiché des histoires suit maintenant le vrai fichier d’index boîte à histoires `.pi`, donc la liste dans l’app reflète enfin l’ordre réel de lecture sur la boîte
 - Boutons `↑` / `↓` pour déplacer une histoire sur la boîte sans retransférer les packs
 
 ### Corrigé
@@ -73,7 +73,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ## [2.1.6] — 2026-05-22
 ### Corrigé
-- Correctif critique de génération des packs Lunii : restauration du patch ZIP complet dans `lunii-bridge.py` pour une **lecture directe réellement lisible** sur la boîte
+- Correctif critique de génération des packs boîte à histoires : restauration du patch ZIP complet dans `boite-bridge.py` pour une **lecture directe réellement lisible** sur la boîte
 - Injection fiable d'une image de couverture dans le ZIP final (`assets/*.png`) pour éviter les histoires visibles mais non ouvrables
 - Versions application réalignées en `2.1.6` (`package.json`, `Cargo.toml`, `tauri.conf.json`, `APP_VERSION`) afin que la détection de mise à jour GitHub voie correctement la nouvelle release
 
@@ -106,7 +106,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 ## [2.1.2] — 2026-05-22
 ### Ajouté
 - Bouton 🔧 dans le panneau device pour reconstruire l'index `.pi` sans tout retransférer
-- Mode `--repair-index <mount>` dans `lunii-bridge.py` (utilisé par le bouton et en CLI)
+- Mode `--repair-index <mount>` dans `boite-bridge.py` (utilisé par le bouton et en CLI)
 - Commande Tauri `repair_pack_index` exposée au frontend
 
 ---
@@ -128,20 +128,20 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ## [2.0.9] — 2026-05-22
 ### Corrigé
-- Dépendances Python (`Lunii.QT`, `studio-pack-generator`) déplacées de l'app bundle (lecture seule) vers `~/.luniisync/` (toujours accessible en écriture)
+- Dépendances Python (`StoryBox.QT`, `studio-pack-generator`) déplacées de l'app bundle (lecture seule) vers `~/.synchro_boite_a_histoires/` (toujours accessible en écriture)
 
 ---
 
 ## [2.0.8] — 2026-05-22
 ### Corrigé
-- `lunii-bridge.py` introuvable dans le bundle `.app` : ajouté aux ressources Tauri (`resources: ["../lunii-bridge.py"]`)
+- `boite-bridge.py` introuvable dans le bundle `.app` : ajouté aux ressources Tauri (`resources: ["../boite-bridge.py"]`)
 - `locate_bridge()` Rust cherche maintenant dans `Resources/_up_/` (chemin réel après bundling Tauri)
 
 ---
 
 ## [2.0.7] — 2026-05-22
 ### Ajouté
-- Migration automatique des entrées device : l'ancienne entrée UUID hérite du nom donné à la Lunii, puis est supprimée
+- Migration automatique des entrées device : l'ancienne entrée UUID hérite du nom donné à la boîte à histoires, puis est supprimée
 - Compteur de suppressions séparé dans l'écran de fin de sync
 
 ---
@@ -154,7 +154,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ## [2.0.5] — 2026-05-22
 ### Amélioré
-- Identification du device par numéro de série matériel (`serial-XXXX` depuis le fichier `.md` de la Lunii) plutôt que par l'UUID de volume FAT32 (instable entre deux montages)
+- Identification du device par numéro de série matériel (`serial-XXXX` depuis le fichier `.md` de la boîte à histoires) plutôt que par l'UUID de volume FAT32 (instable entre deux montages)
 
 ---
 
@@ -176,7 +176,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 
 ### Corrigé
 - Vérification de mise à jour déplacée côté Rust (`reqwest`) car `fetch()` externe est bloqué par la WKWebView macOS
-- URL du dépôt GitHub corrigée (`malikkaraoui/Lunii_Synchro`)
+- URL du dépôt GitHub corrigée (`malikkaraoui/Synchro_boite_a_histoires`)
 
 ---
 
@@ -190,15 +190,15 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 ## [2.0.0] — 2026-05-22 — Refonte majeure (V2)
 ### Architecture
 - Réécriture complète : **Tauri 2.0** (Rust + HTML/JS) remplace l'interface PySide6
-- Détection USB et inventaire en **Rust** (porté depuis `lunii-studio`) : robuste, sans `psutil`
-- Génération des packs audio et import cryptographique délégués à **Python** (`lunii-bridge.py`) via sidecar
-- Identification du device par hash SHA-256 du fichier audio + sidecar `.lunii-studio.json`
+- Détection USB et inventaire en **Rust** (porté depuis `la-forge-a-histoires`) : robuste, sans `psutil`
+- Génération des packs audio et import cryptographique délégués à **Python** (`boite-bridge.py`) via sidecar
+- Identification du device par hash SHA-256 du fichier audio + sidecar `.la-forge-a-histoires.json`
 
 ### Ajouté
 - Interface deux colonnes : dossier audio à gauche, contenu boîte à droite
 - Barre de stockage visuelle (utilisé / libre)
 - Sélection individuelle des fichiers à transférer ou à supprimer
-- Journal de synchronisation en temps réel (parsing JSON ligne par ligne depuis `lunii-bridge.py`)
+- Journal de synchronisation en temps réel (parsing JSON ligne par ligne depuis `boite-bridge.py`)
 - Thème clair / sombre / automatique
 - Panneau réglages : gestion des noms de boîtes, thème, vérification de mise à jour
 - Splash screen au démarrage avec vérification de mise à jour
@@ -209,7 +209,7 @@ Toutes les évolutions notables du projet, dans l'ordre antéchronologique.
 ## [1.x] — avant 2026-05 — Version originale (V1)
 ### Description
 - Application de bureau **Python + PySide6**
-- Transfert de fichiers audio MP3/M4A vers la Lunii via `lunii-push.py`
+- Transfert de fichiers audio MP3/M4A vers la boîte à histoires via `boite-push.py`
 - Interface graphique minimale en Qt
-- Dépendances : `Lunii.QT`, `studio-pack-generator`, `PySide6`, `Pillow`
+- Dépendances : `StoryBox.QT`, `studio-pack-generator`, `PySide6`, `Pillow`
 - Packagée avec PyInstaller pour macOS

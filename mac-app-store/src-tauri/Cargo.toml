@@ -1,8 +1,8 @@
 [package]
-name        = "luniisync"
+name        = "synchro_boite_a_histoires"
 version     = "2.1.12"
 edition     = "2021"
-description = "LuniiSync V2 — Transfert audio vers Lunii"
+description = "Synchro Boîte à histoires V2 — Transfert audio vers boîte à histoires"
 
 [features]
 default = []

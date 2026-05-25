@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn patch_direct_play_rewrites_story_json() {
-        let tmp = TempDir::new("luniisync-story-pack-patch");
+        let tmp = TempDir::new("synchro_boite_a_histoires-story-pack-patch");
         let zip_path = tmp.path().join("story.zip");
         create_test_zip(
             &zip_path,
@@ -269,7 +269,7 @@ mod tests {
 
     #[test]
     fn inject_placeholder_cover_adds_png_and_updates_nodes() {
-        let tmp = TempDir::new("luniisync-story-pack-cover");
+        let tmp = TempDir::new("synchro_boite_a_histoires-story-pack-cover");
         let zip_path = tmp.path().join("story.zip");
         create_test_zip(
             &zip_path,
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn inject_placeholder_cover_does_nothing_when_image_exists() {
-        let tmp = TempDir::new("luniisync-story-pack-existing-cover");
+        let tmp = TempDir::new("synchro_boite_a_histoires-story-pack-existing-cover");
         let zip_path = tmp.path().join("story.zip");
         create_test_zip(
             &zip_path,

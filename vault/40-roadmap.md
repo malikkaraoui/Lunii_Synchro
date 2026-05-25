@@ -12,8 +12,8 @@
 ✅ 2026-05-22 · **V2.0.5** — Identification device par serial matériel (plus UUID FAT32)
 ✅ 2026-05-22 · **V2.0.6** — Fix sync avec suppressions seules
 ✅ 2026-05-22 · **V2.0.7** — Migration auto UUID → serial + compteur suppressions
-✅ 2026-05-22 · **V2.0.8** — Fix bundle production : lunii-bridge.py introuvable
-✅ 2026-05-22 · **V2.0.9** — Dépendances Python vers ~/.luniisync/ (hors bundle read-only)
+✅ 2026-05-22 · **V2.0.8** — Fix bundle production : boite-bridge.py introuvable
+✅ 2026-05-22 · **V2.0.9** — Dépendances Python vers ~/.synchro_boite_a_histoires/ (hors bundle read-only)
 ✅ 2026-05-22 · **V2.1.0** — Purge doublons UUID→serial + message erreur éjection
 ✅ 2026-05-22 · **V2.1.1** — Timeout 120s import + vérification montage avant transfert
 ✅ 2026-05-22 · **V2.1.2** — Bouton 🔧 repair index `.pi` + commande Tauri `repair_pack_index`
@@ -27,18 +27,18 @@
 ✅ 2026-05-22 · **V2.1.10** — Réécriture DnD sans DnD natif webview (suivi souris manuel)
 ✅ 2026-05-22 · **V2.1.11** — Builds séparés Apple Silicon/Intel + workflow GitHub Windows
 ✅ 2026-05-22 · **V2.1.12** — Purge persistante anciennes boîtes UUID + fix doublon réglages
-✅ 2026-05-25 · **Mac App Store** — Pipeline import natif Rust (lunii_crypto.rs + lunii_import.rs), 45/45 tests, commit 7f2f797
+✅ 2026-05-25 · **Mac App Store** — Pipeline import natif Rust (storybox_crypto.rs + storybox_import.rs), 45/45 tests, commit 7f2f797
 
 ## Sur le feu
 
-- 🔌 **Validation device physique V2** — Tester import MP3 sur vraie Lunii V2 USB avec `cargo tauri build --features mac-app-store`
+- 🔌 **Validation device physique V2** — Tester import MP3 sur vraie boîte à histoires V2 USB avec `cargo tauri build --features mac-app-store`
 
 ## Ensuite
 
 - 🍎 **Soumission App Store Connect** — après validation device physique + sandbox USB
   - Build universel : `cargo tauri build --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json`
   - Entitlement `com.apple.security.device.usb` à valider build signé
-- 🔐 **Support Lunii V3** (AES-128-CBC) — md_version ≥ 6
+- 🔐 **Support boîte à histoires V3** (AES-128-CBC) — md_version ≥ 6
   - Crates : `aes = "0.8"` + `cbc = "0.1"` + `block-padding = "0.3"`
   - `story_key = reverse_bytes(md[0x40..0x50])`, `story_iv = reverse_bytes(md[0x50..0x60])`
 - 🖼 **Affichage pochettes histoires** — tag APIC des MP3 ou fichier image voisin (prioritaire, documenté dans TODO.md)

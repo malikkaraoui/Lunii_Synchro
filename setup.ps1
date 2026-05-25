@@ -1,4 +1,4 @@
-# setup.ps1 — Installation de lunii-push sur Windows
+# setup.ps1 — Installation de boite-push sur Windows
 # Exécuter avec : powershell -ExecutionPolicy Bypass -File setup.ps1
 
 $ErrorActionPreference = "Stop"
@@ -30,11 +30,11 @@ Write-Host ""
 Write-Host "=== 2. Python dependencies ===" -ForegroundColor Cyan
 pip install PySide6 Pillow requests
 
-# ── 3. Lunii.QT ───────────────────────────────────────────────────────────────
+# ── 3. StoryBox.QT ───────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "=== 3. Lunii.QT ===" -ForegroundColor Cyan
-if (-not (Test-Path "Lunii.QT")) {
-    git clone https://github.com/o-daneel/Lunii.QT.git
+Write-Host "=== 3. StoryBox.QT ===" -ForegroundColor Cyan
+if (-not (Test-Path "StoryBox.QT")) {
+    git clone https://github.com/o-daneel/StoryBox.QT.git
 } else {
     Write-Host "   Déjà présent."
 }
@@ -53,4 +53,4 @@ Write-Host ""
 Write-Host "✅ Installation terminée." -ForegroundColor Green
 Write-Host ""
 Write-Host "Usage :"
-Write-Host "  python lunii-push.py C:\chemin\vers\dossier\audio"
+Write-Host "  python boite-push.py C:\chemin\vers\dossier\audio"

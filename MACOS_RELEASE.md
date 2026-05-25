@@ -76,6 +76,6 @@ En mode Developer ID, il vérifie aussi :
 ## Important
 
 - Une DMG déjà publiée avant ce correctif reste mauvaise : il faut **rebuild + re-uploader**.
-- Les noms de sortie attendus pour remplacement GitHub sont `LuniiSync-macOS-AppleSilicon.dmg` et `LuniiSync-macOS-Intel.dmg`.
+- Les noms de sortie attendus pour remplacement GitHub sont `Synchro Boîte à histoires-macOS-AppleSilicon.dmg` et `Synchro Boîte à histoires-macOS-Intel.dmg`.
 - La signature ad-hoc corrige le faux « app endommagée », mais **ne remplace pas** une notarization pour une vraie diffusion publique.
 - La variante `mac-app-store/` suit un autre chemin de distribution et n’utilise pas ce pipeline direct-download.

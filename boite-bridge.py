@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-lunii-bridge.py — V2 Python sidecar : génération de story packs + import Lunii.
-Appelé par Tauri/Rust : python3 lunii-bridge.py <audio_folder> <device_mount>
+boite-bridge.py — V2 Python sidecar : génération de story packs + import boîte à histoires.
+Appelé par Tauri/Rust : python3 boite-bridge.py <audio_folder> <device_mount>
 Chaque ligne stdout est un objet JSON (type: "progress"|"error"|"done"|"stderr").
 """
 
@@ -22,10 +22,10 @@ from datetime import datetime, timezone
 
 # ── Chemins ───────────────────────────────────────────────────────────────────
 SCRIPT_DIR   = Path(__file__).resolve().parent
-# Dépendances dans ~/.luniisync/ (répertoire utilisateur, toujours accessible en écriture)
-DEPS_DIR     = Path.home() / ".luniisync"
+# Dépendances dans ~/.synchro_boite_a_histoires/ (répertoire utilisateur, toujours accessible en écriture)
+DEPS_DIR     = Path.home() / ".synchro_boite_a_histoires"
 DEPS_DIR.mkdir(exist_ok=True)
-LUNII_QT_DIR = DEPS_DIR / "Lunii.QT"
+STORYBOX_QT_DIR = DEPS_DIR / "StoryBox.QT"
 SPG_BIN      = DEPS_DIR / "studio-pack-generator"
 SPG_VERSION  = "0.5.14"
 AUDIO_EXTS   = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
@@ -36,16 +36,16 @@ def emit(msg_type: str, **kwargs) -> None:
     print(json.dumps({"type": msg_type, **kwargs}), flush=True)
 
 
-# ── Bootstrap Lunii.QT ────────────────────────────────────────────────────────
-def _bootstrap_lunii_qt() -> None:
-    if LUNII_QT_DIR.is_dir():
+# ── Bootstrap StoryBox.QT ────────────────────────────────────────────────────────
+def _bootstrap_storybox_qt() -> None:
+    if STORYBOX_QT_DIR.is_dir():
         return
-    emit("progress", step="setup", message="Clonage de Lunii.QT…")
+    emit("progress", step="setup", message="Clonage de StoryBox.QT…")
     subprocess.run(
-        ["git", "clone", "--quiet", "https://github.com/o-daneel/Lunii.QT.git", str(LUNII_QT_DIR)],
+        ["git", "clone", "--quiet", "https://github.com/o-daneel/StoryBox.QT.git", str(STORYBOX_QT_DIR)],
         check=True,
     )
-    emit("progress", step="setup", message="Lunii.QT cloné.")
+    emit("progress", step="setup", message="StoryBox.QT cloné.")
 
 
 # ── Bootstrap SPG ─────────────────────────────────────────────────────────────
@@ -215,9 +215,9 @@ def _generate_zip(audio_path: Path, work_dir: Path) -> Optional[Path]:
     return zip_path
 
 
-# ── Sidecar LuniiSync ─────────────────────────────────────────────────────────
+# ── Sidecar Synchro Boîte à histoires ─────────────────────────────────────────────────────────
 def _write_sidecar(device, story_id: str, before_uuids: set) -> None:
-    """Écrit .lunii-studio.json pour l'histoire nouvellement importée."""
+    """Écrit .la-forge-a-histoires.json pour l'histoire nouvellement importée."""
     mount = Path(device.mount_point)
     content_dir = mount / ".content"
     if not content_dir.is_dir():
@@ -227,12 +227,12 @@ def _write_sidecar(device, story_id: str, before_uuids: set) -> None:
     if not new_uuids:
         return
     short_uuid = new_uuids.pop()
-    sidecar_path = content_dir / short_uuid / ".lunii-studio.json"
+    sidecar_path = content_dir / short_uuid / ".la-forge-a-histoires.json"
     data = {
         "storyId": story_id,
         "hash": "",
         "pushedAt": datetime.now(timezone.utc).isoformat(),
-        "source": "luniisync",
+        "source": "synchro_boite_a_histoires",
     }
     try:
         with open(sidecar_path, "w", encoding="utf-8") as f:
@@ -288,11 +288,11 @@ def _import_one(device, audio_path: Path, work_dir: Path) -> bool:
 def _repair_index(device_mount: Path) -> None:
     """Recrée le fichier .pi à partir du contenu de .content/"""
     if not device_mount.is_dir():
-        emit("error", message=f"Montage Lunii introuvable : {device_mount}")
+        emit("error", message=f"Montage boîte à histoires introuvable : {device_mount}")
         sys.exit(1)
 
-    _bootstrap_lunii_qt()
-    sys.path.insert(0, str(LUNII_QT_DIR))
+    _bootstrap_storybox_qt()
+    sys.path.insert(0, str(STORYBOX_QT_DIR))
     try:
         try:
             from PySide6.QtCore import QCoreApplication  # type: ignore
@@ -300,15 +300,15 @@ def _repair_index(device_mount: Path) -> None:
             from PyQt6.QtCore import QCoreApplication    # type: ignore
         if QCoreApplication.instance() is None:
             _q_app = QCoreApplication(sys.argv[:1])
-        from pkg.api.device_lunii import LuniiDevice  # type: ignore
+        from pkg.api.device_storybox import StoryBoxDevice  # type: ignore
     except ImportError as exc:
-        emit("error", message=f"Import Lunii.QT échoué : {exc}")
+        emit("error", message=f"Import StoryBox.QT échoué : {exc}")
         sys.exit(1)
 
     try:
-        device = LuniiDevice(str(device_mount))
+        device = StoryBoxDevice(str(device_mount))
         device.update_pack_index()
-        emit("done", added=0, errors=0, message="Index réparé — redémarre la Lunii.")
+        emit("done", added=0, errors=0, message="Index réparé — redémarre la boîte à histoires.")
     except Exception as exc:
         emit("error", message=f"Réparation échouée : {exc}")
         sys.exit(1)
@@ -332,21 +332,21 @@ def main() -> None:
         emit("error", message=f"Dossier audio introuvable : {audio_folder}")
         sys.exit(1)
     if not device_mount.is_dir():
-        emit("error", message=f"Montage Lunii introuvable : {device_mount}")
+        emit("error", message=f"Montage boîte à histoires introuvable : {device_mount}")
         sys.exit(1)
 
     # ── Setup ─────────────────────────────────────────────────────────────────
     try:
-        _bootstrap_lunii_qt()
+        _bootstrap_storybox_qt()
         _bootstrap_spg()
     except Exception as exc:
         emit("error", message=f"Setup échoué : {exc}")
         sys.exit(1)
 
-    # ── Charger Lunii.QT ──────────────────────────────────────────────────────
-    sys.path.insert(0, str(LUNII_QT_DIR))
+    # ── Charger StoryBox.QT ──────────────────────────────────────────────────────
+    sys.path.insert(0, str(STORYBOX_QT_DIR))
     try:
-        # QCoreApplication est requis par Lunii.QT avant tout import de pkg.*
+        # QCoreApplication est requis par StoryBox.QT avant tout import de pkg.*
         try:
             from PySide6.QtCore import QCoreApplication  # type: ignore
         except ImportError:
@@ -354,14 +354,14 @@ def main() -> None:
         if QCoreApplication.instance() is None:
             _q_app = QCoreApplication(sys.argv[:1])
 
-        from pkg.api.device_lunii import LuniiDevice  # type: ignore  # noqa: E402
+        from pkg.api.device_storybox import StoryBoxDevice  # type: ignore  # noqa: E402
     except ImportError as exc:
-        emit("error", message=f"Import Lunii.QT échoué : {exc}")
+        emit("error", message=f"Import StoryBox.QT échoué : {exc}")
         sys.exit(1)
 
     # ── Charger device ────────────────────────────────────────────────────────
     try:
-        device = LuniiDevice(str(device_mount))
+        device = StoryBoxDevice(str(device_mount))
     except Exception as exc:
         emit("error", message=f"Chargement device échoué : {exc}")
         sys.exit(1)
@@ -391,7 +391,7 @@ def main() -> None:
     added  = 0
     errors = 0
 
-    with tempfile.TemporaryDirectory(prefix="luniisync-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="synchro_boite_a_histoires-") as tmp:
         for i, audio_path in enumerate(audio_files, 1):
             work_dir = Path(tmp) / audio_path.stem
             work_dir.mkdir(exist_ok=True)

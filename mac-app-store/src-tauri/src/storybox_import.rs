@@ -1,11 +1,11 @@
 //! Pipeline d'import natif Rust pour variante Mac App Store.
 //!
-//! Remplace lunii-bridge.py pour les opérations compatibles V2 Lunii.
-//! V3 (AES-128-CBC) retourne une erreur explicite : utiliser LuniiSync direct.
+//! Remplace boite-bridge.py pour les opérations compatibles V2 boîte à histoires.
+//! V3 (AES-128-CBC) retourne une erreur explicite : utiliser Synchro Boîte à histoires direct.
 
-use crate::lunii_crypto;
-use crate::lunii_device;
-use crate::lunii_sync;
+use crate::storybox_crypto;
+use crate::storybox_device;
+use crate::storybox_sync;
 use crate::studio_story::StudioStory;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -90,7 +90,7 @@ pub fn generate_simple_pack(audio_path: &Path) -> Result<PathBuf, String> {
     let audio_data = fs::read(audio_path)
         .map_err(|e| format!("Lecture '{}' échouée : {e}", audio_name))?;
 
-    let tmp_dir = std::env::temp_dir().join(format!("luniisync-pack-{}", uuid.simple()));
+    let tmp_dir = std::env::temp_dir().join(format!("synchro_boite_a_histoires-pack-{}", uuid.simple()));
     fs::create_dir_all(&tmp_dir)
         .map_err(|e| format!("Création dossier temporaire échouée : {e}"))?;
 
@@ -183,7 +183,7 @@ pub struct ImportResult {
     pub short_uuid: String,
 }
 
-/// Importe un story pack ZIP vers une boîte Lunii V2 montée.
+/// Importe un story pack ZIP vers une boîte boîte à histoires V2 montée.
 ///
 /// Retourne le `short_uuid` créé sur la boîte.
 /// Rollback automatique du dossier en cas d'échec.
@@ -197,18 +197,18 @@ pub fn import_story(
     // ── 1. Lire et vérifier le fichier .md ───────────────────────────────────
     let md_path = Path::new(mount).join(".md");
     let md_data = fs::read(&md_path)
-        .map_err(|e| format!("Fichier .md Lunii introuvable : {e}"))?;
+        .map_err(|e| format!("Fichier .md boîte à histoires introuvable : {e}"))?;
 
-    if lunii_crypto::md_hw_version(&md_data) >= 3 {
+    if storybox_crypto::md_hw_version(&md_data) >= 3 {
         return Err(
-            "Lunii V3 détectée (firmware récent). \
+            "boîte à histoires V3 détectée (firmware récent). \
              Cet appareil utilise AES-128-CBC non encore supporté dans la variante App Store. \
-             Utilisez LuniiSync (distribution directe) pour cet appareil."
+             Utilisez Synchro Boîte à histoires (distribution directe) pour cet appareil."
                 .to_string(),
         );
     }
 
-    let device_key = lunii_crypto::derive_v2_device_key(&md_data)?;
+    let device_key = storybox_crypto::derive_v2_device_key(&md_data)?;
 
     // ── 2. Extraire le ZIP ───────────────────────────────────────────────────
     on_progress("Lecture du pack…");
@@ -264,13 +264,13 @@ pub fn import_story(
 
     // ── 5. Mise à jour de l'index de la boîte ───────────────────────────────
     on_progress("Mise à jour de l'index…");
-    if let Err(e) = lunii_device::repair_pack_index_native(mount) {
+    if let Err(e) = storybox_device::repair_pack_index_native(mount) {
         let _ = fs::remove_dir_all(&story_dir);
         return Err(format!("Mise à jour index échouée : {e}"));
     }
 
-    // ── 6. Écriture du sidecar LuniiSync ─────────────────────────────────────
-    lunii_sync::write_sidecar(mount, &short_uuid, story_id, hash)?;
+    // ── 6. Écriture du sidecar Synchro Boîte à histoires ─────────────────────────────────────
+    storybox_sync::write_sidecar(mount, &short_uuid, story_id, hash)?;
 
     Ok(ImportResult { short_uuid })
 }
@@ -290,7 +290,7 @@ fn write_story_files(
     ));
     for asset in &story.si {
         let data = find_in_zip(zip_entries, &asset.source_name)?;
-        let ciphered = lunii_crypto::cipher_story_data(data);
+        let ciphered = storybox_crypto::cipher_story_data(data);
         let dest = story_dir.join("sf").join("000").join(&asset.normalized_name);
         fs::write(&dest, &ciphered)
             .map_err(|e| format!("Écriture sf/000/{} échouée : {e}", asset.normalized_name))?;
@@ -305,7 +305,7 @@ fn write_story_files(
     }
     for asset in &story.ri {
         let data = find_in_zip(zip_entries, &asset.source_name)?;
-        let ciphered = lunii_crypto::cipher_story_data(data);
+        let ciphered = storybox_crypto::cipher_story_data(data);
         let dest = story_dir.join("rf").join("000").join(&asset.normalized_name);
         fs::write(&dest, &ciphered)
             .map_err(|e| format!("Écriture rf/000/{} échouée : {e}", asset.normalized_name))?;
@@ -320,11 +320,11 @@ fn write_story_files(
     let ni_data = story.ni_data()?;
 
     // ri, si, li : chiffrés avec la clé générique (premiers 512 octets)
-    fs::write(story_dir.join("ri"), lunii_crypto::cipher_story_data(&ri_data))
+    fs::write(story_dir.join("ri"), storybox_crypto::cipher_story_data(&ri_data))
         .map_err(|e| format!("Écriture ri échouée : {e}"))?;
-    fs::write(story_dir.join("si"), lunii_crypto::cipher_story_data(&si_data))
+    fs::write(story_dir.join("si"), storybox_crypto::cipher_story_data(&si_data))
         .map_err(|e| format!("Écriture si échouée : {e}"))?;
-    fs::write(story_dir.join("li"), lunii_crypto::cipher_story_data(&li_data))
+    fs::write(story_dir.join("li"), storybox_crypto::cipher_story_data(&li_data))
         .map_err(|e| format!("Écriture li échouée : {e}"))?;
 
     // ni : NON chiffré
@@ -336,7 +336,7 @@ fn write_story_files(
         .map_err(|e| format!("Écriture nm échouée : {e}"))?;
 
     // bt : cipher(ri_data[:64], device_key) — authorization token
-    let bt = lunii_crypto::make_bt_v2(&ri_data, device_key);
+    let bt = storybox_crypto::make_bt_v2(&ri_data, device_key);
     fs::write(story_dir.join("bt"), &bt)
         .map_err(|e| format!("Écriture bt échouée : {e}"))?;
 

@@ -52,8 +52,8 @@ jobs:
             throw "Installateur NSIS introuvable"
           }
 
-          Copy-Item $installer.FullName "LuniiSync-Windows.exe" -Force
-          Copy-Item $installer.FullName ("LuniiSync_{0}_Windows_x64.exe" -f $tag.TrimStart('v')) -Force
+          Copy-Item $installer.FullName "Synchro Boîte à histoires-Windows.exe" -Force
+          Copy-Item $installer.FullName ("Synchro Boîte à histoires_{0}_Windows_x64.exe" -f $tag.TrimStart('v')) -Force
 
           "tag=$tag" >> $env:GITHUB_OUTPUT
 
@@ -63,6 +63,6 @@ jobs:
         shell: pwsh
         run: |
           gh release upload "${{ steps.assets.outputs.tag }}" `
-            "LuniiSync-Windows.exe" `
-            ("LuniiSync_{0}_Windows_x64.exe" -f "${{ steps.assets.outputs.tag }}".TrimStart('v')) `
+            "Synchro Boîte à histoires-Windows.exe" `
+            ("Synchro Boîte à histoires_{0}_Windows_x64.exe" -f "${{ steps.assets.outputs.tag }}".TrimStart('v')) `
             --clobber

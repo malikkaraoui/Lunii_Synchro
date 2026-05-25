@@ -1,4 +1,4 @@
-# build-windows.ps1 — Compile LuniiSync.exe pour Windows (x86_64)
+# build-windows.ps1 — Compile Synchro Boîte à histoires.exe pour Windows (x86_64)
 # Usage : powershell -ExecutionPolicy Bypass -File build-windows.ps1
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -8,7 +8,7 @@ $SPG_VERSION = "0.5.14"
 $SPG_URL = "https://github.com/jersou/studio-pack-generator/releases/download/v$SPG_VERSION/studio-pack-generator-$SPG_VERSION-x86_64-windows.zip"
 
 Write-Host ""
-Write-Host "=== Lunii Sync — Build Windows ===" -ForegroundColor Cyan
+Write-Host "=== boîte à histoires Sync — Build Windows ===" -ForegroundColor Cyan
 Write-Host ""
 
 # ── 1. FFmpeg ─────────────────────────────────────────────────────────────────
@@ -41,11 +41,11 @@ pip install --quiet --upgrade `
     unidecode `
     py7zr
 
-# ── 3. Lunii.QT ───────────────────────────────────────────────────────────────
+# ── 3. StoryBox.QT ───────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "=== 3. Lunii.QT ===" -ForegroundColor Cyan
-if (-not (Test-Path "Lunii.QT")) {
-    git clone --quiet https://github.com/o-daneel/Lunii.QT.git
+Write-Host "=== 3. StoryBox.QT ===" -ForegroundColor Cyan
+if (-not (Test-Path "StoryBox.QT")) {
+    git clone --quiet https://github.com/o-daneel/StoryBox.QT.git
     Write-Host "   Cloné."
 } else {
     Write-Host "   Déjà présent."
@@ -68,10 +68,10 @@ if (-not (Test-Path "studio-pack-generator.exe")) {
     Write-Host "   Déjà présent."
 }
 
-# ── 5. Générer une icône .ico depuis l'icône Lunii.QT ────────────────────────
+# ── 5. Générer une icône .ico depuis l'icône StoryBox.QT ────────────────────────
 Write-Host ""
 Write-Host "=== 5. Icône ===" -ForegroundColor Cyan
-$IcoPath = "lunii-sync.ico"
+$IcoPath = "storybox-sync.ico"
 if (-not (Test-Path $IcoPath)) {
     python -c @"
 from PIL import Image
@@ -102,21 +102,21 @@ Write-Host "=== 6. Build .exe ===" -ForegroundColor Cyan
 Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 
 # Patch temporaire du spec pour utiliser l'icône .ico sur Windows
-$SpecContent = Get-Content lunii-app.spec -Raw
+$SpecContent = Get-Content boite-app.spec -Raw
 $SpecPatched = $SpecContent -replace "icon=.*?if _sys\.platform != 'win32' else None", "icon='$IcoPath'"
-$SpecPatched | Set-Content lunii-app-win.spec -Encoding UTF8
+$SpecPatched | Set-Content boite-app-win.spec -Encoding UTF8
 
-pyinstaller lunii-app-win.spec --noconfirm
-Remove-Item lunii-app-win.spec -ErrorAction SilentlyContinue
+pyinstaller boite-app-win.spec --noconfirm
+Remove-Item boite-app-win.spec -ErrorAction SilentlyContinue
 
 # ── 7. Vérification ───────────────────────────────────────────────────────────
 Write-Host ""
-if (Test-Path "dist\LuniiSync\LuniiSync.exe") {
-    $Size = [math]::Round((Get-ChildItem -Recurse "dist\LuniiSync" | Measure-Object -Property Length -Sum).Sum / 1MB, 1)
-    Write-Host "✅  dist\LuniiSync\LuniiSync.exe créé (${Size} MB)" -ForegroundColor Green
+if (Test-Path "dist\Synchro Boîte à histoires\Synchro Boîte à histoires.exe") {
+    $Size = [math]::Round((Get-ChildItem -Recurse "dist\Synchro Boîte à histoires" | Measure-Object -Property Length -Sum).Sum / 1MB, 1)
+    Write-Host "✅  dist\Synchro Boîte à histoires\Synchro Boîte à histoires.exe créé (${Size} MB)" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Pour distribuer : compressez le dossier dist\LuniiSync\ en ZIP."
-    Write-Host "L'utilisateur extrait le ZIP et double-clique sur LuniiSync.exe."
+    Write-Host "Pour distribuer : compressez le dossier dist\Synchro Boîte à histoires\ en ZIP."
+    Write-Host "L'utilisateur extrait le ZIP et double-clique sur Synchro Boîte à histoires.exe."
 } else {
     Write-Host "❌  Build échoué — consultez les logs ci-dessus." -ForegroundColor Red
     exit 1

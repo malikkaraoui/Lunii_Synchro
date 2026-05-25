@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec pour LuniiSync.app (macOS)
+PyInstaller spec pour Synchro Boîte à histoires.app (macOS)
 Généré par build-macos.sh — ne pas modifier à la main.
 """
 
@@ -9,29 +9,29 @@ import platform
 
 import sys as _sys
 ROOT = Path(SPECPATH)
-LUNII_QT = ROOT / "Lunii.QT"
+STORYBOX_QT = ROOT / "StoryBox.QT"
 SPG_NAME = "studio-pack-generator.exe" if _sys.platform == "win32" else "studio-pack-generator"
 
 block_cipher = None
 
 _datas = [
-    (str(LUNII_QT / "pkg"),     "Lunii.QT/pkg"),
-    (str(LUNII_QT / "locales"), "Lunii.QT/locales"),
-    (str(LUNII_QT / "res"),     "Lunii.QT/res"),
+    (str(STORYBOX_QT / "pkg"),     "StoryBox.QT/pkg"),
+    (str(STORYBOX_QT / "locales"), "StoryBox.QT/locales"),
+    (str(STORYBOX_QT / "res"),     "StoryBox.QT/res"),
 ]
 if _sys.platform == "win32" and (ROOT / "tools").exists():
     _datas.append((str(ROOT / "tools"), "tools"))
 
 a = Analysis(
-    [str(ROOT / "lunii-app.py")],
-    pathex=[str(ROOT), str(LUNII_QT)],
+    [str(ROOT / "boite-app.py")],
+    pathex=[str(ROOT), str(STORYBOX_QT)],
     binaries=[
         (str(ROOT / SPG_NAME), "."),
     ],
     datas=_datas,
     hiddenimports=[
-        # Lunii.QT
-        "pkg.api.device_lunii",
+        # StoryBox.QT
+        "pkg.api.device_storybox",
         "pkg.api.device_flam",
         "pkg.api.devices",
         "pkg.api.stories",
@@ -75,7 +75,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="LuniiSync",
+    name="Synchro Boîte à histoires",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -87,7 +87,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     # Icône Windows
-    icon=str(LUNII_QT / "res" / "dmg_icon.icns") if _sys.platform != "win32" else None,
+    icon=str(STORYBOX_QT / "res" / "dmg_icon.icns") if _sys.platform != "win32" else None,
 )
 
 coll = COLLECT(
@@ -98,25 +98,25 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="LuniiSync",
+    name="Synchro Boîte à histoires",
 )
 
 app = BUNDLE(
     coll,
-    name="LuniiSync.app",
-    icon=str(LUNII_QT / "res" / "dmg_icon.icns"),
-    bundle_identifier="com.malik.luniisync",
+    name="Synchro Boîte à histoires.app",
+    icon=str(STORYBOX_QT / "res" / "dmg_icon.icns"),
+    bundle_identifier="com.malik.synchro_boite_a_histoires",
     version="1.0.0",
     info_plist={
         "NSPrincipalClass": "NSApplication",
         "NSAppleScriptEnabled": False,
         "NSHighResolutionCapable": True,
-        "CFBundleDisplayName": "Lunii Sync",
+        "CFBundleDisplayName": "boîte à histoires Sync",
         "CFBundleShortVersionString": "1.0.0",
         "NSHumanReadableCopyright": "Malik Karaoui",
-        # Accès disque amovible (Lunii USB)
+        # Accès disque amovible (boîte à histoires USB)
         "com.apple.security.device.usb": True,
         "NSRemovableVolumesUsageDescription":
-            "Lunii Sync a besoin d'accéder à la Lunii branchée en USB.",
+            "boîte à histoires Sync a besoin d'accéder à la boîte à histoires branchée en USB.",
     },
 )

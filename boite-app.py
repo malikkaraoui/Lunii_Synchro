@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-lunii-app.py — Interface graphique Lunii Sync
-• Mode dev   : python3 lunii-app.py  (auto-installe les dépendances)
-• Mode app   : LuniiSync.app  (tout est embarqué, aucune installation)
+boite-app.py — Interface graphique boîte à histoires Sync
+• Mode dev   : python3 boite-app.py  (auto-installe les dépendances)
+• Mode app   : Synchro Boîte à histoires.app  (tout est embarqué, aucune installation)
 """
 
 import sys
@@ -21,14 +21,14 @@ _FROZEN = getattr(sys, "frozen", False)
 _BUNDLE_DIR = Path(sys._MEIPASS) if _FROZEN else Path(__file__).parent
 
 SCRIPT_DIR   = Path(__file__).parent if not _FROZEN else Path(sys.executable).parent.parent.parent
-LUNII_QT_PATH = _BUNDLE_DIR / "Lunii.QT"
+STORYBOX_QT_PATH = _BUNDLE_DIR / "StoryBox.QT"
 _spg_name    = "studio-pack-generator.exe" if platform.system() == "Windows" else "studio-pack-generator"
 SPG_BINARY   = _BUNDLE_DIR / _spg_name
 SPG_VERSION  = "0.5.14"
 
 # Dossier de données utilisateur (manifests) — toujours dans ~/Library en mode app
 if _FROZEN and platform.system() == "Darwin":
-    _DATA_DIR = Path.home() / "Library" / "Application Support" / "LuniiSync"
+    _DATA_DIR = Path.home() / "Library" / "Application Support" / "Synchro Boîte à histoires"
 else:
     _DATA_DIR = SCRIPT_DIR
 
@@ -68,10 +68,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QFont
 
-sys.path.insert(0, str(LUNII_QT_PATH))
+sys.path.insert(0, str(STORYBOX_QT_PATH))
 logging.basicConfig(level=logging.WARNING)
 
-# ── 3. Setup automatique (Lunii.QT + SPG) ────────────────────────────────────
+# ── 3. Setup automatique (StoryBox.QT + SPG) ────────────────────────────────────
 # (zip_filename, binary_path_inside_zip)
 _SPG_TABLE = {
     ("Darwin",  "arm64"):   (f"studio-pack-generator-{SPG_VERSION}-aarch64-apple.zip",  "studio-pack-generator-aarch64-apple"),
@@ -86,14 +86,14 @@ class SetupWorker(QObject):
 
     def run(self):
         try:
-            if not LUNII_QT_PATH.exists():
-                self.progress.emit("Clonage de Lunii.QT…")
+            if not STORYBOX_QT_PATH.exists():
+                self.progress.emit("Clonage de StoryBox.QT…")
                 subprocess.run(
                     ["git", "clone", "--quiet",
-                     "https://github.com/o-daneel/Lunii.QT.git", str(LUNII_QT_PATH)],
+                     "https://github.com/o-daneel/StoryBox.QT.git", str(STORYBOX_QT_PATH)],
                     check=True,
                 )
-                self.progress.emit("Lunii.QT cloné.")
+                self.progress.emit("StoryBox.QT cloné.")
 
             if not SPG_BINARY.exists():
                 import tempfile, zipfile, shutil
@@ -139,7 +139,7 @@ class SetupWorker(QObject):
 class SetupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Lunii Sync — Installation")
+        self.setWindowTitle("boîte à histoires Sync — Installation")
         self.setMinimumWidth(400)
         self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
         lay = QVBoxLayout(self)
@@ -179,13 +179,13 @@ class SetupDialog(QDialog):
 
 # ── 4. Fonctions de synchronisation ──────────────────────────────────────────
 
-def find_lunii() -> str | None:
+def find_storybox() -> str | None:
     try:
-        from pkg.api.device_lunii import is_lunii
+        from pkg.api.device_storybox import is_storybox
         import psutil
         for part in psutil.disk_partitions(all=False):
             try:
-                if is_lunii(part.mountpoint):
+                if is_storybox(part.mountpoint):
                     return part.mountpoint
             except (PermissionError, OSError):
                 continue
@@ -320,20 +320,20 @@ class SyncWorker(QObject):
     progress = Signal(int, int)
     finished = Signal(bool, str)
 
-    def __init__(self, lunii_path: str, audio_dir: Path):
+    def __init__(self, storybox_path: str, audio_dir: Path):
         super().__init__()
-        self.lunii_path = lunii_path
+        self.storybox_path = storybox_path
         self.audio_dir = audio_dir
 
     def run(self):
         try:
-            from pkg.api.device_lunii import LuniiDevice
+            from pkg.api.device_storybox import StoryBoxDevice
         except ImportError as e:
-            self.finished.emit(False, f"Lunii.QT inaccessible : {e}")
+            self.finished.emit(False, f"StoryBox.QT inaccessible : {e}")
             return
 
         self.log.emit("Connexion au device…")
-        device = LuniiDevice(self.lunii_path)
+        device = StoryBoxDevice(self.storybox_path)
         if device.device_version == 0:
             self.finished.emit(False, "Impossible de lire le device. Vérifiez la connexion USB.")
             return
@@ -357,7 +357,7 @@ class SyncWorker(QObject):
             if fname not in current:
                 story = next((s for s in device.stories if s.short_uuid == suuid), None)
                 if story:
-                    p = Path(self.lunii_path) / ".content" / suuid
+                    p = Path(self.storybox_path) / ".content" / suuid
                     if p.exists():
                         shutil.rmtree(p)
                     device.stories.remove(story)
@@ -377,7 +377,7 @@ class SyncWorker(QObject):
                 try:
                     self.log.emit("  → Génération du pack…")
                     zp = _generate_zip(af, Path(tmp))
-                    self.log.emit("  → Import sur la Lunii…")
+                    self.log.emit("  → Import sur la boîte à histoires…")
                     if device.import_story(zp) is False:
                         raise RuntimeError("Espace insuffisant ?")
                     manifest[af.name] = device.stories[-1].short_uuid
@@ -404,9 +404,9 @@ class SyncWorker(QObject):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Lunii Sync")
+        self.setWindowTitle("boîte à histoires Sync")
         self.setMinimumWidth(520)
-        self._lunii_path: str | None = None
+        self._storybox_path: str | None = None
         self._audio_dir: Path | None = None
         self._thread: QThread | None = None
         self._build_ui()
@@ -422,16 +422,16 @@ class MainWindow(QMainWindow):
         lay.setSpacing(14)
         lay.setContentsMargins(18, 18, 18, 18)
 
-        # Lunii
-        g1 = QGroupBox("Boîte à histoires Lunii")
+        # boîte à histoires
+        g1 = QGroupBox("Boîte à histoires boîte à histoires")
         r1 = QHBoxLayout(g1)
-        self._lunii_lbl = QLabel("Non détectée — branchez la Lunii en USB")
-        self._lunii_lbl.setWordWrap(True)
+        self._storybox_lbl = QLabel("Non détectée — branchez la boîte à histoires en USB")
+        self._storybox_lbl.setWordWrap(True)
         btn_r = QPushButton("↻")
         btn_r.setFixedWidth(36)
         btn_r.setToolTip("Détecter à nouveau")
         btn_r.clicked.connect(self._detect)
-        r1.addWidget(self._lunii_lbl, 1)
+        r1.addWidget(self._storybox_lbl, 1)
         r1.addWidget(btn_r)
         lay.addWidget(g1)
 
@@ -472,42 +472,42 @@ class MainWindow(QMainWindow):
         self._log.setFont(QFont("Menlo", 11))
         lay.addWidget(self._log)
 
-        note = QLabel("Après la synchro : éjectez la Lunii depuis le Finder, puis redémarrez-la.")
+        note = QLabel("Après la synchro : éjectez la boîte à histoires depuis le Finder, puis redémarrez-la.")
         note.setWordWrap(True)
         note.setStyleSheet("color: gray; font-size: 11px;")
         lay.addWidget(note)
 
     def _detect(self):
-        path = find_lunii()
+        path = find_storybox()
         if path:
-            self._lunii_path = path
-            self._lunii_lbl.setText(f"✅  {path}")
+            self._storybox_path = path
+            self._storybox_lbl.setText(f"✅  {path}")
         else:
-            self._lunii_path = None
-            self._lunii_lbl.setText("⏳  Non détectée — branchez la Lunii en USB")
-        self._sync_btn.setEnabled(bool(self._lunii_path and self._audio_dir))
+            self._storybox_path = None
+            self._storybox_lbl.setText("⏳  Non détectée — branchez la boîte à histoires en USB")
+        self._sync_btn.setEnabled(bool(self._storybox_path and self._audio_dir))
 
     def _pick_folder(self):
         d = QFileDialog.getExistingDirectory(self, "Choisir le dossier audio")
         if d:
             self._audio_dir = Path(d)
             self._folder_lbl.setText(str(self._audio_dir))
-        self._sync_btn.setEnabled(bool(self._lunii_path and self._audio_dir))
+        self._sync_btn.setEnabled(bool(self._storybox_path and self._audio_dir))
 
     def _append(self, msg: str):
         self._log.append(msg)
 
     def _start_sync(self):
-        if not self._lunii_path or not self._audio_dir:
+        if not self._storybox_path or not self._audio_dir:
             return
         self._sync_btn.setEnabled(False)
         self._folder_btn.setEnabled(False)
         self._log.clear()
         self._bar.setValue(0)
         self._bar.setVisible(True)
-        self._append(f"Lunii : {self._lunii_path}\nDossier : {self._audio_dir}\n")
+        self._append(f"boîte à histoires : {self._storybox_path}\nDossier : {self._audio_dir}\n")
 
-        self._worker = SyncWorker(self._lunii_path, self._audio_dir)
+        self._worker = SyncWorker(self._storybox_path, self._audio_dir)
         self._thread = QThread(self)
         self._worker.moveToThread(self._thread)
         Q = Qt.ConnectionType.QueuedConnection
@@ -539,9 +539,9 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication.instance() or QApplication(sys.argv)
-    app.setApplicationName("Lunii Sync")
+    app.setApplicationName("boîte à histoires Sync")
 
-    if not _FROZEN and (not LUNII_QT_PATH.exists() or not SPG_BINARY.exists()):
+    if not _FROZEN and (not STORYBOX_QT_PATH.exists() or not SPG_BINARY.exists()):
         dlg = SetupDialog()
         if dlg.exec() != QDialog.DialogCode.Accepted:
             sys.exit(1)
